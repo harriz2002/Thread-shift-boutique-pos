@@ -1,0 +1,6 @@
+{
+  "name": "Threads & Style POS",
+  "description": "Apparel and clothing Point of Sale with variant matrix, real-time stock sync across multi-stores, M-Pesa & card payments, hold & layaway, customer loyalty, and sales analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
