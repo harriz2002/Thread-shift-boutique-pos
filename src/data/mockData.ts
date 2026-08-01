@@ -1,4 +1,4 @@
-import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer } from '../types';
+import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer, UserAccount } from '../types';
 
 export const INITIAL_STORES: StoreLocation[] = [
   {
@@ -785,5 +785,56 @@ export const INITIAL_TRANSFERS: StockTransfer[] = [
         quantity: 5,
       },
     ],
+  },
+];
+
+export const INITIAL_USERS: UserAccount[] = [
+  {
+    id: 'user-admin-1',
+    name: 'Sarah Vance',
+    email: 'admin@threadsstyle.com',
+    role: 'admin',
+    password: 'admin',
+    pin: '1234',
+    department: 'Executive Store Director',
+    assignedStoreId: 'store-1',
+    createdAt: '2026-01-01',
+    isActive: true,
+  },
+  {
+    id: 'user-emp-1',
+    name: 'David Kamau',
+    email: 'cashier@threadsstyle.com',
+    role: 'employee',
+    password: 'employee',
+    pin: '0000',
+    department: 'Head Cashier & Sales',
+    assignedStoreId: 'store-1',
+    createdAt: '2026-02-15',
+    isActive: true,
+  },
+  {
+    id: 'user-emp-2',
+    name: 'Grace Wanjiku',
+    email: 'grace@threadsstyle.com',
+    role: 'employee',
+    password: 'employee',
+    pin: '2222',
+    department: 'Retail Sales Associate',
+    assignedStoreId: 'store-2',
+    createdAt: '2026-03-10',
+    isActive: true,
+  },
+  {
+    id: 'user-emp-3',
+    name: 'Kevin Omondi',
+    email: 'kevin@threadsstyle.com',
+    role: 'employee',
+    password: 'employee',
+    pin: '3333',
+    department: 'Stock & Warehouse Clerk',
+    assignedStoreId: 'store-3',
+    createdAt: '2026-04-01',
+    isActive: true,
   },
 ];

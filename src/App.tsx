@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { bootstrapFirestoreIfEmpty, saveDocument } from './lib/firebase';
 import { 
   INITIAL_STORES, 
   INITIAL_PRODUCTS, 
@@ -38,7 +39,7 @@ import { NewLayawayModal } from './components/NewLayawayModal';
 
 export default function App() {
   // Application State with LocalStorage fallbacks for persistent sessions
-  const [stores] = useState<StoreLocation[]>(() => {
+  const [stores, setStores] = useState<StoreLocation[]>(() => {
     const saved = localStorage.getItem('ts_stores');
     return saved ? JSON.parse(saved) : INITIAL_STORES;
   });
@@ -98,26 +99,91 @@ export default function App() {
   const [isNewLayawayModalOpen, setIsNewLayawayModalOpen] = useState<boolean>(false);
   const [activeReceiptTx, setActiveReceiptTx] = useState<SaleTransaction | null>(null);
 
-  // Sync state to localStorage
+  // Firebase Database Sync Status
+  const [isFirebaseLoaded, setIsFirebaseLoaded] = useState<boolean>(false);
+
+  // Load initial data from Firebase Firestore on boot
+  useEffect(() => {
+    let mounted = true;
+    bootstrapFirestoreIfEmpty()
+      .then((data) => {
+        if (!mounted) return;
+        if (data && data.products && data.products.length > 0) {
+          if (data.stores && data.stores.length > 0) setStores(data.stores);
+          setProducts(data.products);
+          setCustomers(data.customers);
+          setTransactions(data.transactions);
+          setLayaways(data.layaways);
+          setHolds(data.holds);
+          setTransfers(data.transfers);
+          if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
+        }
+        setIsFirebaseLoaded(true);
+      })
+      .catch((err) => {
+        console.error('Failed to load from Firebase Firestore:', err);
+        setIsFirebaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Sync state to localStorage & Firebase Firestore
+  useEffect(() => {
+    localStorage.setItem('ts_stores', JSON.stringify(stores));
+    if (isFirebaseLoaded) {
+      stores.forEach((s) => saveDocument('stores', s));
+    }
+  }, [stores, isFirebaseLoaded]);
+
   useEffect(() => {
     localStorage.setItem('ts_products', JSON.stringify(products));
-  }, [products]);
+    if (isFirebaseLoaded) {
+      products.forEach((p) => saveDocument('products', p));
+    }
+  }, [products, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_customers', JSON.stringify(customers));
-  }, [customers]);
+    if (isFirebaseLoaded) {
+      customers.forEach((c) => saveDocument('customers', c));
+    }
+  }, [customers, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (isFirebaseLoaded) {
+      transactions.forEach((t) => saveDocument('transactions', t));
+    }
+  }, [transactions, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_holds', JSON.stringify(holds));
-  }, [holds]);
+    if (isFirebaseLoaded) {
+      holds.forEach((h) => saveDocument('holds', h));
+    }
+  }, [holds, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_layaways', JSON.stringify(layaways));
-  }, [layaways]);
+    if (isFirebaseLoaded) {
+      layaways.forEach((l) => saveDocument('layaways', l));
+    }
+  }, [layaways, isFirebaseLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_transfers', JSON.stringify(transfers));
+    if (isFirebaseLoaded) {
+      transfers.forEach((tr) => saveDocument('transfers', tr));
+    }
+  }, [transfers, isFirebaseLoaded]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && purchaseOrders.length > 0) {
+      purchaseOrders.forEach((po) => saveDocument('purchase_orders', po));
+    }
+  }, [purchaseOrders, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_theme', isDarkMode ? 'dark' : 'light');

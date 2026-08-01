@@ -12,9 +12,14 @@ import {
   Sparkles,
   Sun,
   Moon,
-  Coins
+  Coins,
+  Shield,
+  Lock,
+  UserCheck,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
-import { StoreLocation } from '../types';
+import { StoreLocation, UserAccount } from '../types';
 
 interface HeaderProps {
   activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns';
@@ -28,6 +33,9 @@ interface HeaderProps {
   onOpenBarcodeScanner: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  currentUser?: UserAccount | null;
+  onOpenAuthModal?: () => void;
+  onOpenStaffModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +50,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenBarcodeScanner,
   isDarkMode = true,
   onToggleDarkMode,
+  currentUser,
+  onOpenAuthModal,
+  onOpenStaffModal,
 }) => {
   const activeStore = stores.find((s) => s.id === activeStoreId) || stores[0];
 
@@ -64,6 +75,10 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden lg:flex items-center gap-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">
                   <Coins className="w-3 h-3" />
                   KES (KSh)
+                </span>
+                <span className="flex items-center gap-1.5 bg-blue-500/20 text-blue-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-500/30" title="All POS data is synced with Firebase Firestore">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                  Firebase DB Connected
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">Kenyan Apparel & Boutique POS System</p>
@@ -127,6 +142,49 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <AlertTriangle className="w-4 h-4 text-amber-400 animate-pulse" />
                 <span>{lowStockCount} Low Stock</span>
+              </button>
+            )}
+
+            {/* Staff Directory & Roles Button (Admin Only) */}
+            {currentUser?.role === 'admin' && onOpenStaffModal && (
+              <button
+                onClick={onOpenStaffModal}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all shadow-sm"
+                title="Manage Staff, Roles & POS PINs"
+              >
+                <Users className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">Staff & Roles</span>
+              </button>
+            )}
+
+            {/* Platform User Role Badge / Sign In Button */}
+            {onOpenAuthModal && (
+              <button
+                onClick={onOpenAuthModal}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm border ${
+                  currentUser
+                    ? currentUser.role === 'admin'
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-blue-500/20 border-blue-500/50 text-blue-300 hover:bg-blue-500/30'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-extrabold border-amber-400/30 hover:brightness-110'
+                }`}
+                title="Switch Account / Sign In / Register Staff"
+              >
+                {currentUser ? (
+                  <>
+                    <span className="w-5 h-5 rounded-md bg-black/30 flex items-center justify-center text-[10px]">
+                      {currentUser.role === 'admin' ? '👑' : '👔'}
+                    </span>
+                    <span className="truncate max-w-[120px]">
+                      {currentUser.name.split(' ')[0]} ({currentUser.role === 'admin' ? 'Admin' : 'Cashier'})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In / Staff Portal</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -211,10 +269,18 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
+            title={currentUser?.role === 'employee' ? 'Admin Executive Platform feature' : 'Executive Sales & Revenue Analytics'}
           >
             <BarChart3 className="w-4 h-4" />
-            <span>Analytics & AI Insights</span>
-            <Sparkles className="w-3 h-3 text-amber-200" />
+            <span>Executive Analytics</span>
+            {currentUser?.role === 'employee' ? (
+              <span className="flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30">
+                <Lock className="w-2.5 h-2.5" />
+                Admin
+              </span>
+            ) : (
+              <Sparkles className="w-3 h-3 text-amber-200" />
+            )}
           </button>
         </div>
       </div>

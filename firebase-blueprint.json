@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ThreadsStyle POS Firebase Blueprint",
+  "description": "Firestore schema and relational mapping for ThreadsStyle POS retail apparel management system",
+  "entities": {
+    "StoreLocation": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "code": { "type": "string", "maxLength": 20 },
+        "address": { "type": "string", "maxLength": 255 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "isWarehouse": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["name", "code", "address", "phone"]
+    },
+    "MasterProduct": {
+      "type": "object",
+      "properties": {
+        "styleNumber": { "type": "string", "maxLength": 50 },
+        "title": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "basePrice": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "image": { "type": "string", "maxLength": 2000 },
+        "fabricContent": { "type": "string", "maxLength": 200 },
+        "careInstructions": { "type": "string", "maxLength": 500 },
+        "variants": { "type": "array" },
+        "tags": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["styleNumber", "title", "category", "basePrice", "createdAt"]
+    },
+    "Customer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 150 },
+        "loyaltyPoints": { "type": "number" },
+        "storeCredit": { "type": "number" },
+        "tier": { "type": "string", "maxLength": 30 },
+        "sizePreferences": { "type": "object" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "totalSpent": { "type": "number" },
+        "totalOrders": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["name", "phone", "email", "loyaltyPoints", "storeCredit", "tier", "createdAt"]
+    },
+    "SaleTransaction": {
+      "type": "object",
+      "properties": {
+        "receiptNumber": { "type": "string", "maxLength": 50 },
+        "date": { "type": "string", "maxLength": 50 },
+        "storeId": { "type": "string", "maxLength": 128 },
+        "cashierName": { "type": "string", "maxLength": 100 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "tax": { "type": "number" },
+        "total": { "type": "number" },
+        "payments": { "type": "array" },
+        "loyaltyPointsEarned": { "type": "number" },
+        "pointsRedeemed": { "type": "number" },
+        "status": { "type": "string", "maxLength": 30 },
+        "returnReason": { "type": "string", "maxLength": 500 },
+        "returnedItems": { "type": "array" }
+      },
+      "required": ["receiptNumber", "date", "storeId", "cashierName", "items", "total", "status"]
+    },
+    "LayawayPlan": {
+      "type": "object",
+      "properties": {
+        "planNumber": { "type": "string", "maxLength": 50 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 50 },
+        "storeId": { "type": "string", "maxLength": 128 },
+        "cartItems": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "depositPaid": { "type": "number" },
+        "balanceDue": { "type": "number" },
+        "startDate": { "type": "string", "maxLength": 50 },
+        "dueDate": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 30 },
+        "paymentsHistory": { "type": "array" },
+        "notes": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["planNumber", "customerName", "storeId", "totalAmount", "status", "startDate"]
+    },
+    "HoldCart": {
+      "type": "object",
+      "properties": {
+        "holdCode": { "type": "string", "maxLength": 50 },
+        "storeId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 50 },
+        "note": { "type": "string", "maxLength": 500 },
+        "cartItems": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "holdDate": { "type": "string", "maxLength": 50 },
+        "expiresAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["holdCode", "storeId", "customerName", "cartItems", "totalAmount", "holdDate"]
+    },
+    "StockTransfer": {
+      "type": "object",
+      "properties": {
+        "transferNumber": { "type": "string", "maxLength": 50 },
+        "date": { "type": "string", "maxLength": 50 },
+        "fromStoreId": { "type": "string", "maxLength": 128 },
+        "toStoreId": { "type": "string", "maxLength": 128 },
+        "items": { "type": "array" },
+        "status": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "initiatedBy": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["transferNumber", "date", "fromStoreId", "toStoreId", "items", "status"]
+    },
+    "ReorderPO": {
+      "type": "object",
+      "properties": {
+        "poNumber": { "type": "string", "maxLength": 50 },
+        "supplierName": { "type": "string", "maxLength": 100 },
+        "dateCreated": { "type": "string", "maxLength": 50 },
+        "targetStoreId": { "type": "string", "maxLength": 128 },
+        "items": { "type": "array" },
+        "status": { "type": "string", "maxLength": 30 },
+        "totalEstimatedCost": { "type": "number" }
+      },
+      "required": ["poNumber", "supplierName", "dateCreated", "targetStoreId", "items", "status"]
+    }
+  },
+  "firestore": {
+    "collections": {
+      "stores": {
+        "entity": "StoreLocation",
+        "description": "Store locations and inventory warehouses"
+      },
+      "products": {
+        "entity": "MasterProduct",
+        "description": "Apparel master catalog and SKU variants"
+      },
+      "customers": {
+        "entity": "Customer",
+        "description": "Loyalty customer records and preferences"
+      },
+      "transactions": {
+        "entity": "SaleTransaction",
+        "description": "Completed POS checkout receipts and return records"
+      },
+      "layaways": {
+        "entity": "LayawayPlan",
+        "description": "Customer layaway payment plans and deposits"
+      },
+      "holds": {
+        "entity": "HoldCart",
+        "description": "Temporary reserved hold items for customers"
+      },
+      "transfers": {
+        "entity": "StockTransfer",
+        "description": "Cross-store inventory transfer records"
+      },
+      "purchase_orders": {
+        "entity": "ReorderPO",
+        "description": "Reorder purchase orders for vendors"
+      }
+    }
+  }
+}

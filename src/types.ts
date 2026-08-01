@@ -185,3 +185,18 @@ export interface ReorderPO {
   status: 'draft' | 'submitted' | 'received';
   totalEstimatedCost: number;
 }
+
+export type UserRole = 'admin' | 'employee';
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  password?: string;
+  pin?: string;
+  assignedStoreId?: string;
+  department?: string;
+  createdAt: string;
+  isActive: boolean;
+}

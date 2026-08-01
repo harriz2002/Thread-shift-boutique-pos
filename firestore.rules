@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Default deny-all for unknown paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Stores collection
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create, update: if isValidId(storeId) &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().code is string && incoming().code.size() <= 20;
+      allow delete: if isValidId(storeId);
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isValidId(productId) &&
+        incoming().title is string && incoming().title.size() <= 150 &&
+        incoming().category is string && incoming().category.size() <= 100;
+      allow delete: if isValidId(productId);
+    }
+
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if true;
+      allow create, update: if isValidId(customerId) &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().phone is string && incoming().phone.size() <= 50;
+      allow delete: if isValidId(customerId);
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow create, update: if isValidId(transactionId) &&
+        incoming().receiptNumber is string && incoming().receiptNumber.size() <= 50 &&
+        incoming().storeId is string && incoming().storeId.size() <= 128;
+      allow delete: if isValidId(transactionId);
+    }
+
+    // Layaways collection
+    match /layaways/{layawayId} {
+      allow read: if true;
+      allow create, update: if isValidId(layawayId) &&
+        incoming().planNumber is string && incoming().planNumber.size() <= 50 &&
+        incoming().storeId is string && incoming().storeId.size() <= 128;
+      allow delete: if isValidId(layawayId);
+    }
+
+    // Holds collection
+    match /holds/{holdId} {
+      allow read: if true;
+      allow create, update: if isValidId(holdId) &&
+        incoming().holdCode is string && incoming().holdCode.size() <= 50 &&
+        incoming().storeId is string && incoming().storeId.size() <= 128;
+      allow delete: if isValidId(holdId);
+    }
+
+    // Stock Transfers collection
+    match /transfers/{transferId} {
+      allow read: if true;
+      allow create, update: if isValidId(transferId) &&
+        incoming().transferNumber is string && incoming().transferNumber.size() <= 50 &&
+        incoming().fromStoreId is string && incoming().fromStoreId.size() <= 128 &&
+        incoming().toStoreId is string && incoming().toStoreId.size() <= 128;
+      allow delete: if isValidId(transferId);
+    }
+
+    // Purchase Orders collection
+    match /purchase_orders/{poId} {
+      allow read: if true;
+      allow create, update: if isValidId(poId) &&
+        incoming().poNumber is string && incoming().poNumber.size() <= 50 &&
+        incoming().supplierName is string && incoming().supplierName.size() <= 100;
+      allow delete: if isValidId(poId);
+    }
+
+    // Users collection (Admin & Employee accounts)
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId) &&
+        incoming().email is string && incoming().email.size() <= 150 &&
+        incoming().role is string && (incoming().role == 'admin' || incoming().role == 'employee');
+      allow delete: if isValidId(userId);
+    }
+  }
+}
