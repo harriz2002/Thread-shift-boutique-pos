@@ -368,11 +368,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                           {!isSelf && (
                             <button
                               type="button"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete account for ${u.name}?`)) {
-                                  onDeleteUser(u.id);
-                                }
-                              }}
+                              onClick={() => onDeleteUser(u.id)}
                               className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
                               title="Delete staff account"
                             >

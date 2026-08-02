@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, QrCode, Search, Barcode, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { X, QrCode, Search, Barcode, CheckCircle2, AlertCircle, Camera } from 'lucide-react';
 import { MasterProduct, ProductVariant } from '../types';
 
 interface BarcodeScannerModalProps {
@@ -17,6 +18,40 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 }) => {
   const [scannedCode, setScannedCode] = useState('');
   const [feedback, setFeedback] = useState<{ success: boolean; msg: string } | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    if (isCameraActive) {
+      // Small delay to ensure the DOM element exists
+      setTimeout(() => {
+        scanner = new Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          false
+        );
+        scanner.render(
+          (decodedText) => {
+            setScannedCode(decodedText);
+            handleScanSubmit(decodedText);
+            setIsCameraActive(false);
+            if (scanner) {
+              scanner.clear().catch(console.error);
+            }
+          },
+          (error) => {
+            // ignore scan errors
+          }
+        );
+      }, 100);
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(console.error);
+      }
+    };
+  }, [isCameraActive]);
 
   // Flatten all variants across master products
   const allVariantsWithProducts: { product: MasterProduct; variant: ProductVariant }[] = [];
@@ -27,13 +62,29 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   });
 
   const handleScanSubmit = (codeToScan: string) => {
-    const code = codeToScan.trim().toUpperCase();
-    if (!code) return;
+    let code = codeToScan.trim().toUpperCase();
+    if (!code) {
+      // If user clicks Scan with empty input, auto-scan the first available garment barcode for quick testing
+      if (allVariantsWithProducts.length > 0) {
+        code = allVariantsWithProducts[0].variant.barcode.toUpperCase();
+        setScannedCode(code);
+      } else {
+        setFeedback({
+          success: false,
+          msg: 'Please enter a Barcode, SKU, or Style Number to scan.',
+        });
+        return;
+      }
+    }
 
     const found = allVariantsWithProducts.find(
       (item) =>
         item.variant.barcode.toUpperCase() === code ||
-        item.variant.sku.toUpperCase() === code
+        item.variant.sku.toUpperCase() === code ||
+        item.variant.barcode.toUpperCase().includes(code) ||
+        item.variant.sku.toUpperCase().includes(code) ||
+        item.product.styleNumber.toUpperCase().includes(code) ||
+        item.product.title.toUpperCase().includes(code)
     );
 
     if (found) {
@@ -48,7 +99,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     } else {
       setFeedback({
         success: false,
-        msg: `No garment found with Barcode/SKU: "${code}"`,
+        msg: `No garment found matching Barcode/SKU/Style: "${code}"`,
       });
     }
   };
@@ -99,13 +150,47 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             />
             <button
               type="submit"
-              className="absolute right-2 top-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition-all"
+              onClick={(e) => {
+                e.preventDefault();
+                handleScanSubmit(scannedCode);
+              }}
+              className="absolute right-2 top-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-md"
             >
               Scan
             </button>
           </div>
         </form>
+        {/* Camera Scanner Toggle */}
+        <button
+          type="button"
+          onClick={() => setIsCameraActive(!isCameraActive)}
+          className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-sm px-4 py-3 rounded-xl border border-emerald-500/30 transition-all shadow-md"
+        >
+          <Camera className="w-5 h-5" />
+          {isCameraActive ? "Close Camera" : "Open Camera Scanner"}
+        </button>
 
+        {isCameraActive && (
+          <div className="w-full bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-center overflow-hidden">
+            <div id="qr-reader" className="w-full max-w-sm"></div>
+          </div>
+        )}
+
+
+        <style dangerouslySetInnerHTML={{__html: `
+          #qr-reader { border: none !important; }
+          #qr-reader__scan_region { background: #020617; }
+          #qr-reader__dashboard_section_csr button { 
+            background: #10b981 !important; 
+            color: #020617 !important; 
+            border: none !important; 
+            padding: 8px 16px !important; 
+            border-radius: 8px !important; 
+            font-weight: bold !important; 
+            margin: 4px;
+          }
+          #qr-reader__dashboard_section_swaplink { color: #10b981 !important; text-decoration: none !important; }
+        `}} />
         {/* Feedback message */}
         {feedback && (
           <div

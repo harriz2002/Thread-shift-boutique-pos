@@ -1,4 +1,5 @@
-import tailwindcss from '@tailwindcss/vite';
+const fs = require('fs');
+const viteConfig = `import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
@@ -16,10 +17,9 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
           runtimeCaching: [
             {
-              urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+              urlPattern: /^https:\\/\\/firestore\\.googleapis\\.com\\/.*/i,
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'firebase-firestore-cache',
@@ -62,3 +62,14 @@ export default defineConfig(() => {
     },
   };
 });
+`;
+fs.writeFileSync('vite.config.ts', viteConfig);
+
+let mainContent = fs.readFileSync('src/main.tsx', 'utf-8');
+if (!mainContent.includes('registerSW')) {
+  mainContent = mainContent.replace(
+    "import App from './App.tsx';",
+    "import App from './App.tsx';\nimport { registerSW } from 'virtual:pwa-register';\n\nregisterSW({ immediate: true });"
+  );
+  fs.writeFileSync('src/main.tsx', mainContent);
+}

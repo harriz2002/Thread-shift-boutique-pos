@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -356,6 +357,37 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
       }
     });
   });
+
+
+  // Prepare Hourly Sales Data
+  const hourlyData = Array.from({ length: 24 }).map((_, i) => ({
+    hour: `${String(i).padStart(2, '0')}:00`,
+    sales: 0,
+    orders: 0
+  }));
+
+  (filteredDailyTransactions || []).forEach(tx => {
+    const rawDate = tx.date || tx.timestamp;
+    if (rawDate) {
+      const dateObj = new Date(rawDate);
+      const hour = dateObj.getHours();
+      hourlyData[hour].sales += (tx.total || 0);
+      hourlyData[hour].orders += 1;
+    }
+  });
+
+  // Prepare Top Categories Data
+  const categorySalesData = Object.entries(
+    (transactions || []).reduce((acc: Record<string, number>, tx) => {
+      (tx.items || []).forEach(item => {
+        const cat = item.product?.category || 'Uncategorized';
+        acc[cat] = (acc[cat] || 0) + (Number(item.unitPrice || 0) * Number(item.quantity || 1));
+      });
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value: Number(value) })).sort((a, b) => b.value - a.value).slice(0, 5);
+
+  const CATEGORY_COLORS = ['#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6'];
 
   // Calculate Most Bought to Least Bought Products
   const productSalesMap: Record<string, { product: MasterProduct; unitsSold: number; revenue: number }> = {};
@@ -999,6 +1031,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
       {activeReportTab === 'overview' && (
         <div className="space-y-6">
 
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -1050,6 +1083,67 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
 
       </div>
+
+      {/* Visual Analytics Dashboards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Hourly Sales Trends */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg lg:col-span-2">
+          <div className="mb-4">
+            <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-amber-400" />
+              <span>Hourly Sales Trends (Filtered Date)</span>
+            </h3>
+            <p className="text-xs text-slate-400">Visualize revenue generation by time of day</p>
+          </div>
+          <div className="h-64 w-full text-xs font-mono">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={hourlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="hour" stroke="#475569" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#475569" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
+                  itemStyle={{ color: '#fbbf24' }}
+                  formatter={(value: any) => formatCurrency(Number(value))}
+                  labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                />
+                <Line type="monotone" dataKey="sales" name="Revenue" stroke="#fbbf24" strokeWidth={3} dot={{ r: 4, fill: '#fbbf24', strokeWidth: 0 }} activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top Categories */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+          <div className="mb-4">
+            <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-purple-400" />
+              <span>Top Categories</span>
+            </h3>
+            <p className="text-xs text-slate-400">Highest grossing product segments</p>
+          </div>
+          <div className="h-64 w-full text-xs font-mono">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categorySalesData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                <XAxis type="number" stroke="#475569" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} hide />
+                <YAxis dataKey="name" type="category" stroke="#475569" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} width={100} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '8px' }}
+                  itemStyle={{ color: '#fbbf24' }}
+                  formatter={(value: any) => formatCurrency(Number(value))}
+                />
+                <Bar dataKey="value" name="Revenue" radius={[0, 4, 4, 0]} barSize={24}>
+                  {categorySalesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
 
       {/* MOST BOUGHT TO LEAST BOUGHT PRODUCTS RANKING PLATFORM */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Layers, 
+  Download, 
   Plus, 
   AlertTriangle, 
   Barcode, 
@@ -62,6 +63,40 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   const [activeTab, setActiveTab] = useState<'matrix' | 'lowstock' | 'transfers' | 'add_style'>('matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>(activeStoreId);
+  const exportPurchaseOrdersCSV = () => {
+    const headers = [
+      'PO Number',
+      'Supplier Name',
+      'Status',
+      'Expected Date',
+      'Total Estimated Cost',
+      'Items JSON'
+    ];
+    
+    const rows = (purchaseOrders || []).map(po => [
+      po.poNumber,
+      po.supplierName,
+      po.status,
+      po.expectedDate,
+      po.totalEstimatedCost,
+      JSON.stringify(po.items)
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Supplier_Ledger_POs_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   // Edit Product Modal State
   const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
@@ -571,11 +606,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete "${product.title}"?`)) {
-                              onDeleteMasterProduct(product.id);
-                            }
-                          }}
+                          onClick={() => onDeleteMasterProduct(product.id)}
                           className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                           title="Delete Product"
                         >
@@ -700,7 +731,16 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
               </p>
             </div>
 
-            <button
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportPurchaseOrdersCSV}
+                className="py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>Export Supplier Ledger</span>
+              </button>
+              <button
               onClick={handleGeneratePO}
               disabled={lowStockList.length === 0}
               className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
@@ -712,6 +752,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
               <FileText className="w-4 h-4" />
               <span>Generate Supplier Purchase Order PO</span>
             </button>
+            </div>
           </div>
 
           <div className="space-y-3">

@@ -21,7 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSignIn,
   onSignUp,
 }) => {
-  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
+  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
 
   // Sign In state
   const [signInEmail, setSignInEmail] = useState('');
@@ -30,12 +30,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Sign Up state
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
   const [assignedStoreId, setAssignedStoreId] = useState<string>(stores[0]?.id || 'store-1');
-  const [department, setDepartment] = useState('Cashier & Sales');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('1234');
   const [signUpError, setSignUpError] = useState('');
 
   if (!isOpen) return null;
@@ -52,12 +51,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     );
 
     if (!user) {
-      setSignInError('No account found with this email or name.');
+      setSignInError('No account found with this email or username.');
       return;
     }
 
     if (user.password && signInPassword && user.password !== signInPassword) {
-      setSignInError('Incorrect password or PIN.');
+      setSignInError('Incorrect password.');
       return;
     }
 
@@ -87,9 +86,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email: trimmedEmail,
       role,
       password: password.trim(),
-      pin: pin.trim() || '0000',
+      pin: '1234',
       assignedStoreId,
-      department: department.trim() || (role === 'admin' ? 'Executive Director' : 'Cashier & Sales'),
+      department: role === 'admin' ? 'Store Director' : 'Cashier & Sales',
       createdAt: new Date().toISOString().split('T')[0],
       isActive: true,
     };
@@ -99,384 +98,393 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     onClose();
   };
 
-  // Quick demo logins
-  const handleDemoLogin = (roleToLogin: 'admin' | 'employee') => {
-    const found = users.find((u) => u.role === roleToLogin && u.isActive);
-    if (found) {
-      onSignIn(found);
-      onClose();
-    }
+  const handleDemoEmployee = () => {
+    const demoEmployee: UserAccount = {
+      id: `emp-demo-${Date.now()}`,
+      name: 'Cole Sonea (Cashier)',
+      email: 'collesonea@gmail.com',
+      role: 'employee',
+      password: 'password123',
+      pin: '1234',
+      assignedStoreId: stores[0]?.id || 'store-1',
+      department: 'Cashier & Sales',
+      createdAt: new Date().toISOString().split('T')[0],
+      isActive: true,
+    };
+    onSignUp(demoEmployee);
+    onSignIn(demoEmployee);
+    onClose();
+  };
+
+  const handleDemoAdmin = () => {
+    const demoAdmin: UserAccount = {
+      id: `admin-demo-${Date.now()}`,
+      name: 'Wilson Admin (Director)',
+      email: 'admin@threadsstyle.co.ke',
+      role: 'admin',
+      password: 'adminpassword123',
+      pin: '9999',
+      assignedStoreId: stores[0]?.id || 'store-1',
+      department: 'Store Director',
+      createdAt: new Date().toISOString().split('T')[0],
+      isActive: true,
+    };
+    onSignUp(demoAdmin);
+    onSignIn(demoAdmin);
+    onClose();
+  };
+
+  const handleGoogleDemo = () => {
+    const demoUser: UserAccount = {
+      id: `google-${Date.now()}`,
+      name: name.trim() || 'Google User',
+      email: email.trim() || 'user@gmail.com',
+      role: role,
+      password: 'password123',
+      pin: '1234',
+      assignedStoreId: stores[0]?.id || 'store-1',
+      department: role === 'admin' ? 'Store Director' : 'Cashier & Sales',
+      createdAt: new Date().toISOString().split('T')[0],
+      isActive: true,
+    };
+    onSignUp(demoUser);
+    onSignIn(demoUser);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-purple-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Staff & Admin Portal
-              </h2>
-              <p className="text-xs text-slate-400">
-                Sign in to switch between Employee Cashier & Admin Executive platforms
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="bg-white text-slate-900 border border-slate-200 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Top Header Bar */}
+        <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
+              ThreadsStyle POS
+            </span>
           </div>
           {currentUser && (
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className="text-slate-400 hover:text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors"
             >
-              Close
+              ✕ Close
             </button>
           )}
         </div>
 
-        {/* Current Active Account Banner (if already logged in) */}
-        {currentUser && (
-          <div className="bg-slate-800/80 px-5 py-3 border-b border-slate-700/60 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs text-slate-400">Currently Logged In:</span>
-              <span className="text-xs font-bold text-white bg-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
-                {currentUser.role === 'admin' ? (
-                  <span className="text-amber-400">👑 ADMIN</span>
-                ) : (
-                  <span className="text-blue-400">👔 EMPLOYEE</span>
-                )}
-                — {currentUser.name}
-              </span>
+        {/* Modal Center Content */}
+        <div className="p-6 pt-2 space-y-5">
+          {/* App Icon / Command Symbol */}
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-xl shadow-indigo-500/25 text-white text-xl font-bold">
+              ⌘
             </div>
-            <button
-              onClick={() => {
-                // Keep modal open so they can switch
-              }}
-              className="text-xs text-amber-400 hover:underline font-medium"
-            >
-              Switch Account
-            </button>
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                {authMode === 'signup' ? 'Create Account' : 'Welcome Back'}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                {authMode === 'signup'
+                  ? 'Join the future of retail POS & multi-store inventory.'
+                  : 'Sign in to your cashier or admin workstation.'}
+              </p>
+            </div>
           </div>
-        )}
 
-        {/* Tab Selector */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('signin');
-              setSignInError('');
-            }}
-            className={`flex-1 py-3.5 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
-              activeTab === 'signin'
-                ? 'border-amber-500 text-amber-400 bg-amber-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <LogIn className="w-4 h-4" />
-            Sign In (Employee / Admin)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('signup');
-              setSignUpError('');
-            }}
-            className={`flex-1 py-3.5 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
-              activeTab === 'signup'
-                ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <UserPlus className="w-4 h-4" />
-            Register New Staff / Admin
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-6 space-y-6">
-          {activeTab === 'signin' ? (
-            <div className="space-y-6">
-              {/* Quick Demo Login Cards */}
-              <div className="space-y-3">
-                <div className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Instant Quick Demo Access:
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Admin Demo Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleDemoLogin('admin')}
-                    className="p-3.5 rounded-xl bg-gradient-to-br from-amber-500/10 to-purple-600/10 hover:from-amber-500/20 hover:to-purple-600/20 border border-amber-500/30 text-left transition-all group shadow-sm"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                        👑 Admin Platform
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                    <p className="text-xs font-semibold text-white">Sarah Vance (Director)</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Full access: POS, Inventory, Reorder Level Alerts, Store Management & Financial Analytics
-                    </p>
-                  </button>
-
-                  {/* Employee Demo Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleDemoLogin('employee')}
-                    className="p-3.5 rounded-xl bg-gradient-to-br from-blue-500/10 to-emerald-600/10 hover:from-blue-500/20 hover:to-emerald-600/20 border border-blue-500/30 text-left transition-all group shadow-sm"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
-                        👔 Employee Platform
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                    <p className="text-xs font-semibold text-white">David Kamau (Cashier)</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Streamlined POS Register, Layaways, Customer Lookup & Tag Barcode Scanner
-                    </p>
-                  </button>
-                </div>
+          {currentUser && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 flex items-center justify-between">
+              <div className="text-xs">
+                <span className="text-slate-500 block">Logged in as:</span>
+                <strong className="text-indigo-900 font-bold">
+                  {currentUser.name} ({currentUser.role === 'admin' ? '👑 Admin' : '👔 Employee'})
+                </strong>
               </div>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-800"></div>
-                <span className="flex-shrink mx-4 text-xs text-slate-500 font-semibold">OR SIGN IN WITH EMAIL</span>
-                <div className="flex-grow border-t border-slate-800"></div>
-              </div>
-
-              {/* Standard Sign In Form */}
-              <form onSubmit={handleSignInSubmit} className="space-y-4">
-                {signInError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {signInError}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Staff Email or Full Name
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="e.g. cashier@threadsstyle.com or admin@threadsstyle.com"
-                      value={signInEmail}
-                      onChange={(e) => setSignInEmail(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Password / PIN
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      placeholder="e.g. admin or employee (or PIN)"
-                      value={signInPassword}
-                      onChange={(e) => setSignInPassword(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Default demo passwords: <span className="text-slate-400 font-mono">admin</span> for admin account or <span className="text-slate-400 font-mono">employee</span> for employee accounts.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-3 rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Sign In to Platform
-                </button>
-              </form>
+              <button
+                onClick={() => {
+                  onSignIn(currentUser);
+                  onClose();
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+              >
+                Continue
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* Role selector tab for Employee vs Admin */}
+          <div className="space-y-2">
+            <div className="bg-slate-100 p-1 rounded-2xl grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                onClick={() => setRole('employee')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  role === 'employee'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <span>👔</span> Employee Role
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('admin')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  role === 'admin'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <span>👑</span> Admin Role
+              </button>
+            </div>
+
+            {/* Role Permission Badge */}
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
+              {role === 'employee' ? (
+                <div>
+                  <span className="font-bold text-slate-800">👔 Employee POS Access:</span> Make a sale (POS Register), Hold & Layaway, Return & Exchange, Customers & Loyalty.
+                </div>
+              ) : (
+                <div>
+                  <span className="font-bold text-indigo-900">👑 Admin Role Access:</span> All Employee POS tools + Multi-Store Inventory Matrix, Store Management, Analytics & Staff Accounts.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {authMode === 'signup' ? (
             /* Sign Up Form */
-            <form onSubmit={handleSignUpSubmit} className="space-y-4">
+            <form onSubmit={handleSignUpSubmit} className="space-y-3.5">
               {signUpError && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {signUpError}
                 </div>
               )}
 
-              {/* Role Selection (Admin vs Employee Platform) */}
+              {/* Full Name */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Select Platform Role
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRole('employee');
-                      if (department === 'Executive Director') setDepartment('Cashier & Sales');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                      role === 'employee'
-                        ? 'bg-blue-500/20 border-blue-500 text-white shadow-sm'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">
-                      👔
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-blue-300">Employee / Cashier</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
-                        POS Checkout, Inventory lookup, Customer loyalty & layaways
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRole('admin');
-                      setDepartment('Executive Director');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
-                      role === 'admin'
-                        ? 'bg-amber-500/20 border-amber-500 text-white shadow-sm'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">
-                      👑
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-amber-300">Store Admin</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">
-                        Full access: Financials, Reorder alerts, Store & Staff control
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Jane Mwangi"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                    />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <User className="w-4 h-4" />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. jane@threadsstyle.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Assigned Store Location
-                  </label>
-                  <div className="relative">
-                    <Building2 className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <select
-                      value={assignedStoreId}
-                      onChange={(e) => setAssignedStoreId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                    >
-                      {stores.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Job Title / Department
-                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. Lead Cashier"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                    required
+                    placeholder="Full Name (e.g. Cole Sonea)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Password
-                  </label>
+              {/* Username / Handle */}
+              <div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <span className="text-xs font-bold">@</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Username (e.g. wilson)"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email address (e.g. collesonea@gmail.com)"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
                   <input
                     type="password"
                     required
-                    placeholder="Set password..."
+                    placeholder="Password (min 6 chars)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    4-Digit POS PIN
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="e.g. 1234"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
-                  />
+              {/* Assigned Store */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1 px-1">
+                  Assigned Store Branch
+                </label>
+                <select
+                  value={assignedStoreId}
+                  onChange={(e) => setAssignedStoreId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                >
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 text-xs mt-2"
+              >
+                Create Account
+              </button>
+            </form>
+          ) : (
+            /* Sign In Form */
+            <form onSubmit={handleSignInSubmit} className="space-y-3.5">
+              {signInError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {signInError}
                 </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1 px-1">
+                  Email or Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. collesonea@gmail.com"
+                  value={signInEmail}
+                  onChange={(e) => setSignInEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1 px-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter password..."
+                  value={signInPassword}
+                  onChange={(e) => setSignInPassword(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
+                />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 mt-2"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-2xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 text-xs mt-2"
               >
-                <UserCheck className="w-4 h-4" />
-                Create Account & Sign In ({role === 'admin' ? 'Admin Platform' : 'Employee Platform'})
+                Sign In to Workstation
               </button>
             </form>
           )}
+
+          {/* OR Divider */}
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink mx-4 text-slate-400 text-[10px] uppercase font-bold tracking-widest bg-white px-2">
+              OR
+            </span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+
+          {/* Quick Demo Role Buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleDemoEmployee}
+              className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm"
+              title="1-Click sign in as Employee Cashier"
+            >
+              <span>👔</span> Demo Employee
+            </button>
+            <button
+              type="button"
+              onClick={handleDemoAdmin}
+              className="w-full bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-700 font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm"
+              title="1-Click sign in as Store Admin"
+            >
+              <span>👑</span> Demo Admin
+            </button>
+          </div>
+
+          {/* Continue with Google */}
+          <button
+            type="button"
+            onClick={handleGoogleDemo}
+            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-2xl transition-all flex items-center justify-center gap-2 text-xs shadow-sm"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.19v3.15C3.2 21.3 7.23 24 12 24z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.19C.43 8.1 0 9.99 0 12s.43 3.9 1.19 5.42l4.09-3.15z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.23 0 3.2 2.7 1.19 6.58l4.09 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+              />
+            </svg>
+            Continue with Google
+          </button>
+
+          {/* Footer toggle link */}
+          <div className="text-center pt-2">
+            {authMode === 'signup' ? (
+              <p className="text-xs text-slate-500">
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('signin')}
+                  className="text-indigo-600 font-bold hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('signup')}
+                  className="text-indigo-600 font-bold hover:underline"
+                >
+                  Create Account
+                </button>
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

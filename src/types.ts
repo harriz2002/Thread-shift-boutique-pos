@@ -17,6 +17,7 @@ export interface StoreLocation {
   address: string;
   phone: string;
   isWarehouse?: boolean;
+  isCentral?: boolean;
 }
 
 export interface ProductVariant {

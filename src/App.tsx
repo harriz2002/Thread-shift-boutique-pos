@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { bootstrapFirestoreIfEmpty, saveDocument } from './lib/firebase';
+import { bootstrapFirestoreIfEmpty, saveDocument, deleteDocument } from './lib/firebase';
 import { 
   INITIAL_STORES, 
   INITIAL_PRODUCTS, 
@@ -7,7 +7,8 @@ import {
   INITIAL_TRANSACTIONS, 
   INITIAL_LAYAWAYS, 
   INITIAL_HOLDS, 
-  INITIAL_TRANSFERS 
+  INITIAL_TRANSFERS,
+  INITIAL_USERS
 } from './data/mockData';
 import { 
   StoreLocation, 
@@ -20,11 +21,14 @@ import {
   StockTransfer, 
   ReorderPO, 
   CartItem, 
-  PaymentMethod 
+  PaymentMethod,
+  UserAccount
 } from './types';
 
 // Components
-import { Header } from './components/Header';
+import { Wifi, WifiOff } from 'lucide-react';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { RegisterPOS } from './components/RegisterPOS';
 import { ProductMatrixModal } from './components/ProductMatrixModal';
 import { BarcodeScannerModal } from './components/BarcodeScannerModal';
@@ -36,9 +40,32 @@ import { CustomerLoyaltyManager } from './components/CustomerLoyaltyManager';
 import { InventoryMatrixManager } from './components/InventoryMatrixManager';
 import { SalesAnalytics } from './components/SalesAnalytics';
 import { NewLayawayModal } from './components/NewLayawayModal';
+import { DatabaseStatusModal } from './components/DatabaseStatusModal';
+import { StoreManagerModal } from './components/StoreManagerModal';
+import { AuthModal } from './components/AuthModal';
+import { StaffManagerModal } from './components/StaffManagerModal';
+import { useGlobalBarcodeScanner } from './hooks/useBarcodeScanner';
 
 export default function App() {
   // Application State with LocalStorage fallbacks for persistent sessions
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showOnlineAlert, setShowOnlineAlert] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowOnlineAlert(true);
+      setTimeout(() => setShowOnlineAlert(false), 3000);
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const [stores, setStores] = useState<StoreLocation[]>(() => {
     const saved = localStorage.getItem('ts_stores');
     return saved ? JSON.parse(saved) : INITIAL_STORES;
@@ -98,13 +125,118 @@ export default function App() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
   const [isNewLayawayModalOpen, setIsNewLayawayModalOpen] = useState<boolean>(false);
   const [activeReceiptTx, setActiveReceiptTx] = useState<SaleTransaction | null>(null);
+  const [isStoreManagerOpen, setIsStoreManagerOpen] = useState<boolean>(false);
 
-  // Firebase Database Sync Status
+  // User Authentication & Staff Roles State
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    const saved = localStorage.getItem('ts_users');
+    return saved ? JSON.parse(saved) : INITIAL_USERS;
+  });
+
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    const saved = localStorage.getItem('ts_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem('ts_current_user');
+    return !saved;
+  });
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
+
+  // Auto-logout after 20 minutes of inactivity
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      if (currentUser) {
+        timeoutId = setTimeout(() => {
+          setCurrentUser(null);
+          localStorage.removeItem('ts_current_user');
+          setIsAuthModalOpen(true);
+        }, 20 * 60 * 1000); // 20 minutes
+      }
+    };
+
+    if (currentUser) {
+      resetTimer(); // Initialize timer
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+      events.forEach(event => document.addEventListener(event, resetTimer, { passive: true }));
+      
+      return () => {
+        clearTimeout(timeoutId);
+        events.forEach(event => document.removeEventListener(event, resetTimer));
+      };
+    }
+  }, [currentUser]);
+
+  // Firebase Database & Cloud SQL PostgreSQL Dual-Layer Sync Status
   const [isFirebaseLoaded, setIsFirebaseLoaded] = useState<boolean>(false);
+  const [dbMode, setDbMode] = useState<'cloudsql' | 'firestore' | 'loading'>('firestore');
+  const [cloudSqlStatus, setCloudSqlStatus] = useState<{
+    connected: boolean;
+    database?: string;
+    time?: string;
+    reason?: string;
+    error?: string;
+  }>({ connected: false });
+  const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState<boolean>(false);
 
-  // Load initial data from Firebase Firestore on boot
+  const checkCloudSqlHealth = async () => {
+    try {
+      const res = await fetch('/api/sql/health');
+      if (res.ok) {
+        const data = await res.json();
+        setCloudSqlStatus(data);
+        if (data.connected) {
+          setDbMode('cloudsql');
+        } else {
+          setDbMode('firestore');
+        }
+      }
+    } catch (err) {
+      console.warn('Cloud SQL health check offline, using Firestore dual-layer:', err);
+      setDbMode('firestore');
+      setCloudSqlStatus({ connected: false, reason: 'Standby / Firestore Fallback active' });
+    }
+  };
+
+  const handleForceSyncToCloudSql = async () => {
+    for (const s of stores) {
+      await fetch('/api/sql/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: 'stores', item: s }),
+      });
+    }
+    for (const p of products) {
+      await fetch('/api/sql/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: 'products', item: p }),
+      });
+    }
+    for (const c of customers) {
+      await fetch('/api/sql/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: 'customers', item: c }),
+      });
+    }
+    for (const t of transactions) {
+      await fetch('/api/sql/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: 'transactions', item: t }),
+      });
+    }
+  };
+
+  // Load initial data from Firebase Firestore on boot & check Cloud SQL
   useEffect(() => {
     let mounted = true;
+    checkCloudSqlHealth();
     bootstrapFirestoreIfEmpty()
       .then((data) => {
         if (!mounted) return;
@@ -520,17 +652,71 @@ export default function App() {
     );
   };
 
+  const handleUpdateStores = (updatedStores: StoreLocation[], updatedProducts: MasterProduct[], newActiveStoreId?: string, deletedStoreId?: string) => {
+    setStores(updatedStores);
+    setProducts(updatedProducts);
+    if (newActiveStoreId) {
+      setActiveStoreId(newActiveStoreId);
+    }
+    localStorage.setItem('ts_stores', JSON.stringify(updatedStores));
+    localStorage.setItem('ts_products', JSON.stringify(updatedProducts));
+    updatedStores.forEach((s) => saveDocument('stores', s));
+    updatedProducts.forEach((p) => saveDocument('products', p));
+    if (deletedStoreId) {
+      deleteDocument('stores', deletedStoreId);
+    }
+  };
+
+
+  // Global Barcode Scanner Listener (Physical Scanners)
+  useGlobalBarcodeScanner((barcode) => {
+    let foundProduct = null;
+    let foundVariant = null;
+
+    for (const prod of products) {
+      const match = prod.variants.find(v => v.barcode === barcode || v.sku === barcode);
+      if (match) {
+        foundProduct = prod;
+        foundVariant = match;
+        break;
+      }
+    }
+
+    if (foundProduct && foundVariant) {
+      handleAddToCart(foundProduct, foundVariant, 1);
+    } else {
+      console.warn('Scanned item not found in inventory:', barcode);
+    }
+  });
+
   const activeStoreObj = stores.find((s) => s.id === activeStoreId);
+
+
+  // Security: Auto-redirect employees away from restricted tabs
+  useEffect(() => {
+    if (currentUser?.role === 'employee' && (activeTab === 'inventory' || activeTab === 'analytics')) {
+      setActiveTab('pos');
+    }
+  }, [currentUser, activeTab]);
 
   return (
     <div
-      className={`min-h-screen font-sans selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
+      className={`min-h-screen flex flex-col md:flex-row font-sans selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
         isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-100 text-slate-900 light'
       }`}
     >
       
-      {/* Top Header & Store Switcher Bar */}
-      <Header
+
+      {/* Network Status Banner */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-red-500 text-white py-1.5 px-4 flex items-center justify-center gap-2 text-sm font-bold shadow-md shadow-red-500/20">
+          <WifiOff className="w-4 h-4" />
+          <span>You are currently offline. Changes will be synced when connection is restored.</span>
+        </div>
+      )}
+      
+      {/* Side Navigation Bar */}
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         stores={stores}
@@ -539,13 +725,26 @@ export default function App() {
         lowStockCount={lowStockCount}
         holdCount={holds.length}
         layawayCount={layaways.length}
-        onOpenBarcodeScanner={() => setIsBarcodeScannerOpen(true)}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
+        currentUser={currentUser}
+        onOpenStoreManager={() => setIsStoreManagerOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <main className="pb-16">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <TopBar
+          lowStockCount={lowStockCount}
+          onOpenBarcodeScanner={() => setIsBarcodeScannerOpen(true)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenStaffModal={() => setIsStaffModalOpen(true)}
+          dbMode={dbMode}
+          onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
+          setActiveTab={setActiveTab}
+        />
+
+        {/* Main Content Area */}
+        <main className="flex-1 pb-16 overflow-y-auto">
         {activeTab === 'pos' && (
           <RegisterPOS
             products={products}
@@ -621,6 +820,7 @@ export default function App() {
           />
         )}
       </main>
+      </div>
 
       {/* Modals */}
 
@@ -675,6 +875,71 @@ export default function App() {
           customers={customers}
           onClose={() => setIsNewLayawayModalOpen(false)}
           onSaveLayaway={handleSaveNewLayaway}
+        />
+      )}
+
+      {/* 6. Cloud SQL & Firebase Dual-Layer Database Status Modal */}
+      <DatabaseStatusModal
+        isOpen={isDatabaseModalOpen}
+        onClose={() => setIsDatabaseModalOpen(false)}
+        dbMode={dbMode}
+        cloudSqlStatus={cloudSqlStatus}
+        onRefreshDbHealth={checkCloudSqlHealth}
+        onForceSyncToCloudSql={handleForceSyncToCloudSql}
+      />
+
+      {/* 7. Store Locations & Inventory Transfer Manager Modal */}
+      <StoreManagerModal
+        isOpen={isStoreManagerOpen}
+        onClose={() => setIsStoreManagerOpen(false)}
+        stores={stores}
+        products={products}
+        activeStoreId={activeStoreId}
+        onUpdateStores={handleUpdateStores}
+      />
+
+      {/* 8. Authentication & Sign In / Sign Up Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        users={users}
+        stores={stores}
+        onSignIn={(user) => {
+          setCurrentUser(user);
+          localStorage.setItem('ts_current_user', JSON.stringify(user));
+        }}
+        onSignUp={(newUser) => {
+          const updated = [newUser, ...users];
+          setUsers(updated);
+          setCurrentUser(newUser);
+          localStorage.setItem('ts_users', JSON.stringify(updated));
+          localStorage.setItem('ts_current_user', JSON.stringify(newUser));
+        }}
+      />
+
+      {/* 9. Staff Manager Modal */}
+      {isStaffModalOpen && currentUser && (
+        <StaffManagerModal
+          isOpen={isStaffModalOpen}
+          onClose={() => setIsStaffModalOpen(false)}
+          currentUser={currentUser}
+          users={users}
+          stores={stores}
+          onAddUser={(u) => {
+            const updated = [u, ...users];
+            setUsers(updated);
+            localStorage.setItem('ts_users', JSON.stringify(updated));
+          }}
+          onUpdateUser={(u) => {
+            const updated = users.map((x) => (x.id === u.id ? u : x));
+            setUsers(updated);
+            localStorage.setItem('ts_users', JSON.stringify(updated));
+          }}
+          onSwitchUser={(u) => {
+            setCurrentUser(u);
+            localStorage.setItem('ts_current_user', JSON.stringify(u));
+          }}
         />
       )}
 

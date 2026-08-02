@@ -2,6 +2,9 @@ import express from "express";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { createPool } from "./src/db/index.ts";
+import { initDatabaseTables } from "./src/db/init.ts";
+import { fetchAllDatabaseState, upsertDocumentSQL } from "./src/db/queries.ts";
 
 const app = express();
 const PORT = 3000;
@@ -25,6 +28,60 @@ const getAIClient = () => {
 // API Routes
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Cloud SQL Health & Connectivity Check
+app.get("/api/sql/health", async (_req, res) => {
+  try {
+    if (!process.env.SQL_HOST || !process.env.SQL_DB_NAME) {
+      return res.json({ connected: false, reason: "Cloud SQL credentials not set in runtime environment" });
+    }
+    const pool = createPool();
+    await initDatabaseTables();
+    const client = await pool.connect();
+    try {
+      const result = await client.query("SELECT NOW() as current_time");
+      return res.json({
+        connected: true,
+        time: result.rows[0].current_time,
+        database: process.env.SQL_DB_NAME,
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error("Cloud SQL health check failed:", err);
+    return res.status(500).json({
+      connected: false,
+      error: err.message || "Database connection failed",
+    });
+  }
+});
+
+// Fetch all state from Cloud SQL
+app.get("/api/sql/sync", async (_req, res) => {
+  try {
+    const data = await fetchAllDatabaseState();
+    res.json(data);
+  } catch (err: any) {
+    console.error("Error fetching SQL database state:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch from Cloud SQL" });
+  }
+});
+
+// Upsert a document/record into Cloud SQL
+app.post("/api/sql/save", async (req, res) => {
+  try {
+    const { collectionName, item } = req.body;
+    if (!collectionName || !item) {
+      return res.status(400).json({ error: "collectionName and item are required." });
+    }
+    await upsertDocumentSQL(collectionName, item);
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Error saving document to Cloud SQL:", err);
+    res.status(500).json({ error: err.message || "Failed to save to Cloud SQL" });
+  }
 });
 
 // AI Insights endpoint for inventory optimization, reorder alerts, trend analysis
