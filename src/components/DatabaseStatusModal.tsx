@@ -53,10 +53,10 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Cloud SQL & Firebase Storage Integration
+                Supabase & Multi-Database Engine Status
               </h2>
               <p className="text-xs text-slate-400">
-                PostgreSQL (europe-west2) with Drizzle ORM & Firestore Dual-Layer Persistence
+                Connected to Supabase (dsagwpwvqfynfabntdwa.supabase.co) with RLS + Realtime Persistence
               </p>
             </div>
           </div>

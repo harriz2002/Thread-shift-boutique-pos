@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { bootstrapFirestoreIfEmpty, saveDocument, deleteDocument } from './lib/firebase';
+import {
+  bootstrapSupabaseData,
+  saveSupabaseDocument,
+  deleteSupabaseDocument,
+  SUPABASE_TABLES
+} from './lib/supabaseService';
+import { deleteFileFromSupabaseStorage } from './lib/supabaseStorage';
 import { 
   INITIAL_STORES, 
   INITIAL_PRODUCTS, 
@@ -234,11 +241,15 @@ export default function App() {
     }
   };
 
-  // Load initial data from Firebase Firestore on boot & check Cloud SQL
+  // Load initial data from Supabase & Firebase Firestore on boot & check Cloud SQL
+  const [isSupabaseLoaded, setIsSupabaseLoaded] = useState<boolean>(false);
+
   useEffect(() => {
     let mounted = true;
     checkCloudSqlHealth();
-    bootstrapFirestoreIfEmpty()
+
+    // Load from Supabase
+    bootstrapSupabaseData()
       .then((data) => {
         if (!mounted) return;
         if (data && data.products && data.products.length > 0) {
@@ -250,73 +261,117 @@ export default function App() {
           setHolds(data.holds);
           setTransfers(data.transfers);
           if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
+          if (data.users && data.users.length > 0) setUsers(data.users);
         }
+        setIsSupabaseLoaded(true);
+      })
+      .catch((err) => {
+        console.error('Failed to load from Supabase:', err);
+        setIsSupabaseLoaded(true);
+      });
+
+    // Also sync from Firestore as backup
+    bootstrapFirestoreIfEmpty()
+      .then((data) => {
+        if (!mounted) return;
         setIsFirebaseLoaded(true);
       })
       .catch((err) => {
         console.error('Failed to load from Firebase Firestore:', err);
         setIsFirebaseLoaded(true);
       });
+
     return () => {
       mounted = false;
     };
   }, []);
 
-  // Sync state to localStorage & Firebase Firestore
+  // Sync state to localStorage, Supabase, & Firebase Firestore
   useEffect(() => {
     localStorage.setItem('ts_stores', JSON.stringify(stores));
+    if (isSupabaseLoaded) {
+      stores.forEach((s) => saveSupabaseDocument(SUPABASE_TABLES.STORES, s));
+    }
     if (isFirebaseLoaded) {
       stores.forEach((s) => saveDocument('stores', s));
     }
-  }, [stores, isFirebaseLoaded]);
+  }, [stores, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_products', JSON.stringify(products));
+    if (isSupabaseLoaded) {
+      products.forEach((p) => saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, p));
+    }
     if (isFirebaseLoaded) {
       products.forEach((p) => saveDocument('products', p));
     }
-  }, [products, isFirebaseLoaded]);
+  }, [products, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_customers', JSON.stringify(customers));
+    if (isSupabaseLoaded) {
+      customers.forEach((c) => saveSupabaseDocument(SUPABASE_TABLES.CUSTOMERS, c));
+    }
     if (isFirebaseLoaded) {
       customers.forEach((c) => saveDocument('customers', c));
     }
-  }, [customers, isFirebaseLoaded]);
+  }, [customers, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_transactions', JSON.stringify(transactions));
+    if (isSupabaseLoaded) {
+      transactions.forEach((t) => saveSupabaseDocument(SUPABASE_TABLES.TRANSACTIONS, t));
+    }
     if (isFirebaseLoaded) {
       transactions.forEach((t) => saveDocument('transactions', t));
     }
-  }, [transactions, isFirebaseLoaded]);
+  }, [transactions, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_holds', JSON.stringify(holds));
+    if (isSupabaseLoaded) {
+      holds.forEach((h) => saveSupabaseDocument(SUPABASE_TABLES.HOLDS, h));
+    }
     if (isFirebaseLoaded) {
       holds.forEach((h) => saveDocument('holds', h));
     }
-  }, [holds, isFirebaseLoaded]);
+  }, [holds, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_layaways', JSON.stringify(layaways));
+    if (isSupabaseLoaded) {
+      layaways.forEach((l) => saveSupabaseDocument(SUPABASE_TABLES.LAYAWAYS, l));
+    }
     if (isFirebaseLoaded) {
       layaways.forEach((l) => saveDocument('layaways', l));
     }
-  }, [layaways, isFirebaseLoaded]);
+  }, [layaways, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_transfers', JSON.stringify(transfers));
+    if (isSupabaseLoaded) {
+      transfers.forEach((tr) => saveSupabaseDocument(SUPABASE_TABLES.TRANSFERS, tr));
+    }
     if (isFirebaseLoaded) {
       transfers.forEach((tr) => saveDocument('transfers', tr));
     }
-  }, [transfers, isFirebaseLoaded]);
+  }, [transfers, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
+    if (isSupabaseLoaded && purchaseOrders.length > 0) {
+      purchaseOrders.forEach((po) => saveSupabaseDocument(SUPABASE_TABLES.PURCHASE_ORDERS, po));
+    }
     if (isFirebaseLoaded && purchaseOrders.length > 0) {
       purchaseOrders.forEach((po) => saveDocument('purchase_orders', po));
     }
-  }, [purchaseOrders, isFirebaseLoaded]);
+  }, [purchaseOrders, isSupabaseLoaded, isFirebaseLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_users', JSON.stringify(users));
+    if (isSupabaseLoaded) {
+      users.forEach((u) => saveSupabaseDocument(SUPABASE_TABLES.USERS, u));
+    }
+  }, [users, isSupabaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_theme', isDarkMode ? 'dark' : 'light');
@@ -618,6 +673,11 @@ export default function App() {
 
   // Delete Master Product
   const handleDeleteMasterProduct = (productId: string) => {
+    const prodToDelete = products.find((p) => p.id === productId);
+    if (prodToDelete?.image) {
+      deleteFileFromSupabaseStorage(prodToDelete.image);
+    }
+    deleteSupabaseDocument(SUPABASE_TABLES.PRODUCTS, productId);
     setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
@@ -665,6 +725,7 @@ export default function App() {
     updatedProducts.forEach((p) => saveDocument('products', p));
     if (deletedStoreId) {
       deleteDocument('stores', deletedStoreId);
+      deleteSupabaseDocument(SUPABASE_TABLES.STORES, deletedStoreId);
     }
   };
 

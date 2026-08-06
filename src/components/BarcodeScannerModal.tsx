@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { X, QrCode, Search, Barcode, CheckCircle2, AlertCircle, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { X, QrCode, Barcode, CheckCircle2, AlertCircle, Camera, SwitchCamera, RefreshCw } from 'lucide-react';
 import { MasterProduct, ProductVariant } from '../types';
 
 interface BarcodeScannerModalProps {
@@ -19,44 +19,135 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [scannedCode, setScannedCode] = useState('');
   const [feedback, setFeedback] = useState<{ success: boolean; msg: string } | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment');
+  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn("Error stopping camera scanner:", e);
+      }
+      html5QrCodeRef.current = null;
+    }
+  };
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
-    if (isCameraActive) {
-      // Small delay to ensure the DOM element exists
-      setTimeout(() => {
-        scanner = new Html5QrcodeScanner(
-          "qr-reader",
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 150 },
-            videoConstraints: { facingMode: "environment" },
-            rememberLastUsedCamera: false,
-          },
-          false
-        );
-        scanner.render(
-          (decodedText) => {
-            setScannedCode(decodedText);
-            handleScanSubmit(decodedText);
-            setIsCameraActive(false);
-            if (scanner) {
-              scanner.clear().catch(console.error);
+    let mounted = true;
+
+    async function startScanner() {
+      if (!isCameraActive) return;
+
+      setIsCameraLoading(true);
+      setCameraError(null);
+
+      // Stop existing instance if any
+      await stopScanner();
+
+      // Small delay for DOM element #qr-reader to mount
+      await new Promise((r) => setTimeout(r, 150));
+      if (!mounted) return;
+
+      try {
+        const qrCode = new Html5Qrcode("qr-reader");
+        html5QrCodeRef.current = qrCode;
+
+        // Try getting cameras list for switching option
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (mounted && devices && devices.length > 0) {
+            setCameras(devices);
+            // If user hasn't explicitly chosen a camera ID yet, check if there's a back/rear camera in labels
+            if (!selectedCameraId) {
+              const backCamera = devices.find(d => 
+                d.label.toLowerCase().includes('back') || 
+                d.label.toLowerCase().includes('rear') || 
+                d.label.toLowerCase().includes('environment')
+              );
+              if (backCamera) {
+                setSelectedCameraId(backCamera.id);
+              }
             }
-          },
-          (error) => {
-            // ignore scan errors
           }
-        );
-      }, 100);
+        } catch (e) {
+          console.warn("Could not list camera devices:", e);
+        }
+
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 160 },
+          aspectRatio: 1.0,
+        };
+
+        const onScanSuccess = (decodedText: string) => {
+          setScannedCode(decodedText);
+          handleScanSubmit(decodedText);
+          setIsCameraActive(false);
+        };
+
+        const onScanFailure = () => {
+          // ignore frame scan errors
+        };
+
+        // Determine constraint: prefer selected camera ID or environment facingMode (rear camera)
+        let cameraConstraint: any = selectedCameraId || { facingMode: cameraFacingMode };
+
+        try {
+          await qrCode.start(cameraConstraint, config, onScanSuccess, onScanFailure);
+        } catch (firstErr) {
+          console.warn("Camera start failed with preferred constraint, trying fallback to facingMode 'environment'", firstErr);
+          try {
+            await qrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          } catch (secondErr) {
+            console.warn("Fallback failed, trying facingMode 'user'", secondErr);
+            await qrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+          }
+        }
+
+        if (mounted) {
+          setIsCameraLoading(false);
+        }
+      } catch (err: any) {
+        console.error("Camera start final error:", err);
+        if (mounted) {
+          setIsCameraLoading(false);
+          setCameraError(err?.message || "Failed to access camera. Please allow camera permissions in your browser.");
+        }
+      }
+    }
+
+    if (isCameraActive) {
+      startScanner();
+    } else {
+      stopScanner();
     }
 
     return () => {
-      if (scanner) {
-        scanner.clear().catch(console.error);
-      }
+      mounted = false;
+      stopScanner();
     };
-  }, [isCameraActive]);
+  }, [isCameraActive, cameraFacingMode, selectedCameraId]);
+
+  const toggleCamera = async () => {
+    if (cameras.length > 1) {
+      const currentIndex = selectedCameraId ? cameras.findIndex(c => c.id === selectedCameraId) : 0;
+      const nextIndex = (currentIndex + 1) % cameras.length;
+      setSelectedCameraId(cameras[nextIndex].id);
+    } else {
+      const nextMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+      setCameraFacingMode(nextMode);
+      setSelectedCameraId(null);
+    }
+  };
 
   // Flatten all variants across master products
   const allVariantsWithProducts: { product: MasterProduct; variant: ProductVariant }[] = [];
@@ -166,35 +257,65 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           </div>
         </form>
         {/* Camera Scanner Toggle */}
-        <button
-          type="button"
-          onClick={() => setIsCameraActive(!isCameraActive)}
-          className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-sm px-4 py-3 rounded-xl border border-emerald-500/30 transition-all shadow-md"
-        >
-          <Camera className="w-5 h-5" />
-          {isCameraActive ? "Close Camera" : "Open Camera Scanner"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setIsCameraActive(!isCameraActive)}
+            className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-sm px-4 py-3 rounded-xl border border-emerald-500/30 transition-all shadow-md"
+          >
+            <Camera className="w-5 h-5" />
+            {isCameraActive ? "Close Camera" : "Open Rear Camera Scanner"}
+          </button>
+
+          {isCameraActive && (
+            <button
+              type="button"
+              onClick={toggleCamera}
+              title="Switch Camera (Rear / Front)"
+              className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3.5 py-3 rounded-xl border border-slate-700 transition-all shrink-0"
+            >
+              <SwitchCamera className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">Flip</span>
+            </button>
+          )}
+        </div>
 
         {isCameraActive && (
-          <div className="w-full bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-center overflow-hidden">
-            <div id="qr-reader" className="w-full max-w-sm"></div>
+          <div className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col items-center justify-center overflow-hidden gap-2">
+            <div className="flex items-center justify-between w-full text-xs text-slate-400 px-1">
+              <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                {cameraFacingMode === 'environment' || selectedCameraId ? 'Rear Camera (Barcode Scanner)' : 'Front Camera'}
+              </span>
+              {cameras.length > 0 && (
+                <span className="text-[11px] text-slate-500">
+                  {cameras.length} camera(s) detected
+                </span>
+              )}
+            </div>
+
+            {isCameraLoading && (
+              <div className="py-8 flex flex-col items-center gap-2 text-slate-400 text-xs">
+                <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
+                <span>Starting camera...</span>
+              </div>
+            )}
+
+            {cameraError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-300 text-xs flex items-center gap-2 w-full">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{cameraError}</span>
+              </div>
+            )}
+
+            <div id="qr-reader" className="w-full max-w-sm rounded-lg overflow-hidden border border-slate-800"></div>
           </div>
         )}
 
-
         <style dangerouslySetInnerHTML={{__html: `
           #qr-reader { border: none !important; }
+          #qr-reader video { width: 100% !important; object-fit: cover !important; border-radius: 8px !important; }
           #qr-reader__scan_region { background: #020617; }
-          #qr-reader__dashboard_section_csr button { 
-            background: #10b981 !important; 
-            color: #020617 !important; 
-            border: none !important; 
-            padding: 8px 16px !important; 
-            border-radius: 8px !important; 
-            font-weight: bold !important; 
-            margin: 4px;
-          }
-          #qr-reader__dashboard_section_swaplink { color: #10b981 !important; text-decoration: none !important; }
         `}} />
         {/* Feedback message */}
         {feedback && (

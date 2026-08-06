@@ -79,8 +79,8 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-[98vw] max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -241,31 +241,31 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
         )}
 
         {/* Staff Table */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-slate-950/30">
+          <div className="overflow-x-auto w-full rounded-xl border border-slate-800 bg-slate-900/80 shadow-inner">
+            <table className="w-full text-left border-collapse min-w-[740px]">
               <thead>
-                <tr className="border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-2.5 px-3">Staff Member</th>
-                  <th className="py-2.5 px-3">Platform Role</th>
-                  <th className="py-2.5 px-3">Assigned Store</th>
-                  <th className="py-2.5 px-3">PIN / Access</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                <tr className="border-b border-slate-800 bg-slate-950/90 text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  <th className="py-3.5 px-4">Staff Member</th>
+                  <th className="py-3.5 px-4">Platform Role</th>
+                  <th className="py-3.5 px-4">Assigned Store</th>
+                  <th className="py-3.5 px-4">PIN / Access</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-800/80 text-sm">
                 {filteredUsers.map((u) => {
                   const isSelf = u.id === currentUser.id;
                   return (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-3">
+                    <tr key={u.id} className="hover:bg-slate-800/60 transition-colors">
+                      <td className="py-3.5 px-4 min-w-[220px]">
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
                               u.role === 'admin'
-                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10'
+                                : 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm shadow-blue-500/10'
                             }`}
                           >
                             {u.role === 'admin' ? '👑' : '👔'}
@@ -274,19 +274,19 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                             <div className="text-sm font-bold text-white flex items-center gap-1.5">
                               {u.name}
                               {isSelf && (
-                                <span className="bg-slate-700 text-slate-300 text-[10px] px-1.5 py-0.5 rounded font-normal">
+                                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">
                                   You
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-slate-400">{u.email}</div>
-                            <div className="text-[11px] text-slate-500">{u.department}</div>
+                            <div className="text-xs font-medium text-slate-300">{u.email}</div>
+                            <div className="text-[11px] font-semibold text-amber-400/90">{u.department}</div>
                           </div>
                         </div>
                       </td>
 
                       {/* Role Switcher */}
-                      <td className="py-3 px-3">
+                      <td className="py-3.5 px-4">
                         <select
                           value={u.role}
                           onChange={(e) => {
@@ -294,28 +294,28 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                             onUpdateUser({ ...u, role: newRole });
                           }}
                           disabled={isSelf}
-                          className={`text-xs font-bold px-2.5 py-1 rounded-lg border focus:outline-none ${
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${
                             u.role === 'admin'
-                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                              : 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-                          } ${isSelf ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'}`}
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                              : 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                          } ${isSelf ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer hover:border-slate-500'}`}
                         >
-                          <option value="employee">👔 Employee Platform</option>
-                          <option value="admin">👑 Admin Platform</option>
+                          <option value="employee" className="bg-slate-900 text-white">👔 Employee Platform</option>
+                          <option value="admin" className="bg-slate-900 text-white">👑 Admin Platform</option>
                         </select>
                       </td>
 
                       {/* Store */}
-                      <td className="py-3 px-3">
+                      <td className="py-3.5 px-4">
                         <select
                           value={u.assignedStoreId || stores[0]?.id}
                           onChange={(e) => {
                             onUpdateUser({ ...u, assignedStoreId: e.target.value });
                           }}
-                          className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2 py-1 max-w-[170px] truncate"
+                          className="bg-slate-800 border border-slate-700 text-slate-100 font-semibold text-xs rounded-lg px-3 py-1.5 max-w-[190px] truncate focus:outline-none focus:border-amber-500 cursor-pointer"
                         >
                           {stores.map((s) => (
-                            <option key={s.id} value={s.id}>
+                            <option key={s.id} value={s.id} className="bg-slate-900 text-white">
                               {s.name}
                             </option>
                           ))}
@@ -323,15 +323,15 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                       </td>
 
                       {/* PIN code badge */}
-                      <td className="py-3 px-3">
-                        <span className="inline-flex items-center gap-1 text-xs font-mono bg-slate-950 px-2 py-1 rounded border border-slate-800 text-slate-300">
-                          <KeyRound className="w-3 h-3 text-slate-500" />
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700 text-amber-300 shadow-inner">
+                          <KeyRound className="w-3.5 h-3.5 text-slate-400" />
                           {u.pin || '1234'}
                         </span>
                       </td>
 
                       {/* Active Status */}
-                      <td className="py-3 px-3">
+                      <td className="py-3.5 px-4">
                         <button
                           type="button"
                           onClick={() => {
@@ -339,10 +339,10 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                             onUpdateUser({ ...u, isActive: !u.isActive });
                           }}
                           disabled={isSelf}
-                          className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                          className={`text-xs px-3 py-1 rounded-full font-bold border shadow-sm transition-all ${
                             u.isActive
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                              : 'bg-red-500/10 border-red-500/30 text-red-400'
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30'
+                              : 'bg-rose-500/20 border-rose-500/50 text-rose-300 hover:bg-rose-500/30'
                           }`}
                         >
                           {u.isActive ? 'Active' : 'Deactivated'}
@@ -350,7 +350,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                       </td>
 
                       {/* Action buttons */}
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {!isSelf && (
                             <button
@@ -360,7 +360,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                                 onClose();
                               }}
                               title="Switch to this account immediately"
-                              className="text-xs bg-slate-800 hover:bg-slate-700 text-amber-400 px-2.5 py-1 rounded-lg border border-slate-700 font-semibold"
+                              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/40 font-bold transition-all shadow-sm active:scale-95"
                             >
                               Login As
                             </button>
@@ -369,7 +369,7 @@ export const StaffManagerModal: React.FC<StaffManagerModalProps> = ({
                             <button
                               type="button"
                               onClick={() => onDeleteUser(u.id)}
-                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                              className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 hover:text-rose-200 transition-colors border border-transparent hover:border-rose-500/30"
                               title="Delete staff account"
                             >
                               <Trash2 className="w-4 h-4" />

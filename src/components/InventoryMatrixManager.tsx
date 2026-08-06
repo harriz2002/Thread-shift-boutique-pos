@@ -1,4 +1,8 @@
 import React, { useState, useRef } from 'react';
+import {
+  uploadFileToSupabaseStorage,
+  deleteFileFromSupabaseStorage
+} from '../lib/supabaseStorage';
 import { 
   Layers, 
   Download, 
@@ -170,11 +174,30 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   // Image Upload File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  // Handle Image File Upload (Convert to Base64)
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditMode = false) => {
+  // Handle Image File Upload to Supabase Storage
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditMode = false) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    try {
+      const itemId = isEditMode && editingProduct ? editingProduct.id : `prod-${Date.now()}`;
+      const { signedUrl } = await uploadFileToSupabaseStorage(file, 'products', itemId);
+      
+      const imageUrl = signedUrl || URL.createObjectURL(file);
+      if (isEditMode && editingProduct) {
+        if (editingProduct.image && !editingProduct.image.startsWith('http')) {
+          deleteFileFromSupabaseStorage(editingProduct.image);
+        }
+        setEditingProduct({ ...editingProduct, image: imageUrl });
+      } else {
+        setNewImage(imageUrl);
+      }
+    } catch (err) {
+      console.error('Error uploading photo to Supabase storage:', err);
+      // Fallback to base64 if storage error
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -185,6 +208,8 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
