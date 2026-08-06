@@ -27,7 +27,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       setTimeout(() => {
         scanner = new Html5QrcodeScanner(
           "qr-reader",
-          { fps: 10, qrbox: { width: 250, height: 150 } },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 },
+            videoConstraints: { facingMode: "environment" },
+            rememberLastUsedCamera: false,
+          },
           false
         );
         scanner.render(

@@ -11,8 +11,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { StoreLocation, UserAccount } from '../types';
+import { X } from 'lucide-react';
 
 interface SidebarProps {
+  isMobileMenuOpen?: boolean;
+  setIsMobileMenuOpen?: (open: boolean) => void;
   activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns';
   setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns') => void;
   stores: StoreLocation[];
@@ -36,15 +39,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   layawayCount = 0,
   currentUser,
   onOpenStoreManager,
+  isMobileMenuOpen = false,
+  setIsMobileMenuOpen,
 }) => {
   const activeStore = stores.find((s) => s.id === activeStoreId) || stores[0];
 
   return (
-    <aside className="bg-slate-900 text-slate-100 border-b md:border-b-0 md:border-r border-slate-800 z-30 shadow-md transition-colors dark:bg-slate-900 dark:border-slate-800 light:bg-white light:border-slate-200 w-full md:w-64 shrink-0 flex flex-col md:h-screen sticky top-0 overflow-y-auto no-scrollbar">
+    <aside className={`bg-slate-900 text-slate-100 border-r border-slate-800 z-[100] shadow-md transition-all duration-300 dark:bg-slate-900 dark:border-slate-800 light:bg-white light:border-slate-200 w-64 shrink-0 flex flex-col h-screen fixed md:sticky top-0 overflow-y-auto no-scrollbar ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className="p-4 flex flex-col h-full gap-6">
         
         {/* Logo & Brand */}
         <div className="flex flex-col gap-3">
+          {setIsMobileMenuOpen && (
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden absolute top-4 right-4 p-2 bg-slate-800 text-white rounded-lg">
+              <X className="w-5 h-5" />
+            </button>
+          )}
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-amber-500/20">
               T&S

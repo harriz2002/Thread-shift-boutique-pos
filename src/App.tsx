@@ -143,6 +143,7 @@ export default function App() {
     return !saved;
   });
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Auto-logout after 20 minutes of inactivity
   useEffect(() => {
@@ -701,7 +702,7 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col md:flex-row font-sans selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
+      className={`min-h-screen flex font-sans selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
         isDarkMode ? 'bg-slate-950 text-slate-100 dark' : 'bg-slate-100 text-slate-900 light'
       }`}
     >
@@ -716,7 +717,15 @@ export default function App() {
       )}
       
       {/* Side Navigation Bar */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
       <Sidebar
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         stores={stores}
@@ -731,6 +740,7 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <TopBar
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           lowStockCount={lowStockCount}
           onOpenBarcodeScanner={() => setIsBarcodeScannerOpen(true)}
           isDarkMode={isDarkMode}

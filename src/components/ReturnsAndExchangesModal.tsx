@@ -158,7 +158,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                     </div>
 
                     <div className="text-right">
-                      <div className="font-mono font-bold text-amber-400 text-sm">${tx.total.toFixed(2)}</div>
+                      <div className="font-mono font-bold text-amber-400 text-sm">KSh {tx.total.toFixed(2)}</div>
                       <span className="text-[10px] text-emerald-400 font-semibold uppercase">{tx.status}</span>
                     </div>
                   </div>
@@ -198,7 +198,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                 <div className="text-right">
                   <span className="text-xs text-slate-400 block">Original Total:</span>
                   <span className="font-mono font-extrabold text-amber-400 text-base">
-                    ${selectedTx.total.toFixed(2)}
+                    KSh {selectedTx.total.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -243,7 +243,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                         </div>
 
                         <div className="text-right font-mono font-bold text-xs text-slate-200">
-                          ${(item.unitPrice * item.quantity - item.discountAmount).toFixed(2)}
+                          KSh {(item.unitPrice * item.quantity - item.discountAmount).toFixed(2)}
                         </div>
                       </div>
                     );
@@ -304,7 +304,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                   {/* Calculated Refund */}
                   <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-sm font-extrabold">
                     <span className="text-slate-200">Total Refund Due:</span>
-                    <span className="text-emerald-400 font-mono text-base">${refundAmount.toFixed(2)}</span>
+                    <span className="text-emerald-400 font-mono text-base">KSh {refundAmount.toFixed(2)}</span>
                   </div>
 
                 </div>
@@ -327,7 +327,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                   }`}
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>Process Garment Return (${refundAmount.toFixed(2)})</span>
+                  <span>Process Garment Return (KSh {refundAmount.toFixed(2)})</span>
                 </button>
               )}
 
