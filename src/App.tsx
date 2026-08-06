@@ -151,6 +151,18 @@ export default function App() {
   });
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('ts_sidebar_collapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const toggleSidebarCollapsed = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('ts_sidebar_collapsed', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Auto-logout after 20 minutes of inactivity
   useEffect(() => {
@@ -787,6 +799,8 @@ export default function App() {
       <Sidebar
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebarCollapsed={toggleSidebarCollapsed}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         stores={stores}
@@ -802,6 +816,8 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <TopBar
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebarCollapsed={toggleSidebarCollapsed}
           lowStockCount={lowStockCount}
           onOpenBarcodeScanner={() => setIsBarcodeScannerOpen(true)}
           isDarkMode={isDarkMode}

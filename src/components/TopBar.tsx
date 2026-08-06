@@ -8,11 +8,15 @@ import {
   Moon,
   Database,
   Users,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { UserAccount } from '../types';
 
 interface TopBarProps {
   onToggleMobileMenu?: () => void;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebarCollapsed?: () => void;
   lowStockCount?: number;
   onOpenBarcodeScanner: () => void;
   isDarkMode?: boolean;
@@ -37,16 +41,35 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenDatabaseModal,
   setActiveTab,
   onToggleMobileMenu,
+  isSidebarCollapsed = false,
+  onToggleSidebarCollapsed,
 }) => {
   return (
     <header className="bg-slate-900 text-slate-100 border-b border-slate-800 z-20 shadow-sm px-4 sm:px-6 h-16 flex items-center justify-between shrink-0 sticky top-0 transition-colors dark:bg-slate-900 dark:border-slate-800 light:bg-white light:border-slate-200">
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="flex items-center gap-2">
+        {/* Mobile Menu Toggle */}
         {onToggleMobileMenu && (
-          <button onClick={onToggleMobileMenu} className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white">
+          <button onClick={onToggleMobileMenu} className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white md:hidden" title="Open Mobile Menu">
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <div className="font-bold text-amber-500 text-sm">T&S POS</div>
+
+        {/* Desktop Sidebar Toggle Button */}
+        {onToggleSidebarCollapsed && (
+          <button
+            onClick={onToggleSidebarCollapsed}
+            className="hidden md:flex items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-slate-700/80 transition-all shadow-sm active:scale-95"
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="w-5 h-5" />
+            ) : (
+              <PanelLeftClose className="w-5 h-5" />
+            )}
+          </button>
+        )}
+
+        <div className="font-bold text-amber-500 text-sm md:hidden">T&S POS</div>
       </div>
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
         
