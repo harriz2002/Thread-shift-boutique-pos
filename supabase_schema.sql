@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- SUPABASE POSTGRESQL DATABASE SCHEMA & ROW LEVEL SECURITY (RLS) POLICIES
 -- Threads Style POS & Retail Management System
--- Paste and execute this file in your Supabase SQL Editor:
+-- Paste and execute this entire file in your Supabase SQL Editor:
 -- https://supabase.com/dashboard/project/_/sql
 -- ==============================================================================
 
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. SALE TRANSACTIONS TABLE
+-- 4. SALE TRANSACTIONS TABLE (With full garment return & swap metadata)
 CREATE TABLE IF NOT EXISTS sale_transactions (
   id TEXT PRIMARY KEY,
   user_id UUID DEFAULT auth.uid(),
@@ -80,8 +80,13 @@ CREATE TABLE IF NOT EXISTS sale_transactions (
   payments JSONB DEFAULT '[]'::jsonb,
   loyalty_points_earned INT DEFAULT 0,
   points_redeemed INT DEFAULT 0,
-  status TEXT DEFAULT 'completed',
+  status TEXT DEFAULT 'completed', -- 'completed', 'returned', 'exchanged'
   return_reason TEXT,
+  refund_method TEXT,
+  refund_amount NUMERIC DEFAULT 0,
+  returned_at TIMESTAMPTZ,
+  restocked BOOLEAN DEFAULT true,
+  returned_variant_ids JSONB DEFAULT '[]'::jsonb,
   returned_items JSONB DEFAULT '[]'::jsonb,
   payload JSONB DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -178,8 +183,40 @@ CREATE TABLE IF NOT EXISTS user_accounts (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 10. RETURNED GOODS LOGS TABLE (Dedicated audit log for returned & swapped garments)
+CREATE TABLE IF NOT EXISTS returned_goods_logs (
+  id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  user_id UUID DEFAULT auth.uid(),
+  transaction_id TEXT,
+  receipt_number TEXT NOT NULL,
+  store_id TEXT,
+  customer_id TEXT,
+  customer_name TEXT,
+  cashier_name TEXT,
+  returned_items JSONB DEFAULT '[]'::jsonb,
+  refund_amount NUMERIC DEFAULT 0,
+  refund_method TEXT DEFAULT 'mpesa',
+  return_reason TEXT DEFAULT 'Size Swap',
+  restocked BOOLEAN DEFAULT true,
+  returned_at TIMESTAMPTZ DEFAULT NOW(),
+  payload JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
--- ENABLE ROW LEVEL SECURITY (RLS) & POLICIES WITH auth.uid()
+-- SCHEMA MIGRATIONS (Safely adds return columns to existing sale_transactions)
+-- ==============================================================================
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS return_reason TEXT;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS refund_method TEXT;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS refund_amount NUMERIC DEFAULT 0;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS restocked BOOLEAN DEFAULT true;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS returned_variant_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE sale_transactions ADD COLUMN IF NOT EXISTS returned_items JSONB DEFAULT '[]'::jsonb;
+
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS) & IDEMPOTENT POLICY DELETION/CREATION
 -- ==============================================================================
 
 ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
@@ -191,31 +228,112 @@ ALTER TABLE hold_carts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE returned_goods_logs ENABLE ROW LEVEL SECURITY;
 
--- Create RLS Policies allowing authenticated users to access their owned rows, or public demo fallback
+-- 1. STORES POLICIES
+DROP POLICY IF EXISTS "stores_policy" ON stores;
 DROP POLICY IF EXISTS "Public or authenticated access to stores" ON stores;
-CREATE POLICY "Public or authenticated access to stores" ON stores FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "stores_policy" ON stores FOR ALL USING (true) WITH CHECK (true);
 
+-- 2. PRODUCTS POLICIES
+DROP POLICY IF EXISTS "products_policy" ON products;
 DROP POLICY IF EXISTS "Public or authenticated access to products" ON products;
-CREATE POLICY "Public or authenticated access to products" ON products FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "products_policy" ON products FOR ALL USING (true) WITH CHECK (true);
 
+-- 3. CUSTOMERS POLICIES
+DROP POLICY IF EXISTS "customers_policy" ON customers;
 DROP POLICY IF EXISTS "Public or authenticated access to customers" ON customers;
-CREATE POLICY "Public or authenticated access to customers" ON customers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "customers_policy" ON customers FOR ALL USING (true) WITH CHECK (true);
 
+-- 4. SALE TRANSACTIONS POLICIES
+DROP POLICY IF EXISTS "sale_transactions_policy" ON sale_transactions;
 DROP POLICY IF EXISTS "Public or authenticated access to sale_transactions" ON sale_transactions;
-CREATE POLICY "Public or authenticated access to sale_transactions" ON sale_transactions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "sale_transactions_policy" ON sale_transactions FOR ALL USING (true) WITH CHECK (true);
 
+-- 5. LAYAWAY PLANS POLICIES
+DROP POLICY IF EXISTS "layaway_plans_policy" ON layaway_plans;
 DROP POLICY IF EXISTS "Public or authenticated access to layaway_plans" ON layaway_plans;
-CREATE POLICY "Public or authenticated access to layaway_plans" ON layaway_plans FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "layaway_plans_policy" ON layaway_plans FOR ALL USING (true) WITH CHECK (true);
 
+-- 6. HOLD CARTS POLICIES
+DROP POLICY IF EXISTS "hold_carts_policy" ON hold_carts;
 DROP POLICY IF EXISTS "Public or authenticated access to hold_carts" ON hold_carts;
-CREATE POLICY "Public or authenticated access to hold_carts" ON hold_carts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "hold_carts_policy" ON hold_carts FOR ALL USING (true) WITH CHECK (true);
 
+-- 7. STOCK TRANSFERS POLICIES
+DROP POLICY IF EXISTS "stock_transfers_policy" ON stock_transfers;
 DROP POLICY IF EXISTS "Public or authenticated access to stock_transfers" ON stock_transfers;
-CREATE POLICY "Public or authenticated access to stock_transfers" ON stock_transfers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "stock_transfers_policy" ON stock_transfers FOR ALL USING (true) WITH CHECK (true);
 
+-- 8. PURCHASE ORDERS POLICIES
+DROP POLICY IF EXISTS "purchase_orders_policy" ON purchase_orders;
 DROP POLICY IF EXISTS "Public or authenticated access to purchase_orders" ON purchase_orders;
-CREATE POLICY "Public or authenticated access to purchase_orders" ON purchase_orders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "purchase_orders_policy" ON purchase_orders FOR ALL USING (true) WITH CHECK (true);
 
+-- 9. USER ACCOUNTS POLICIES
+DROP POLICY IF EXISTS "user_accounts_policy" ON user_accounts;
 DROP POLICY IF EXISTS "Public or authenticated access to user_accounts" ON user_accounts;
-CREATE POLICY "Public or authenticated access to user_accounts" ON user_accounts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "user_accounts_policy" ON user_accounts FOR ALL USING (true) WITH CHECK (true);
+
+-- 10. RETURNED GOODS LOGS POLICIES
+DROP POLICY IF EXISTS "returned_goods_logs_policy" ON returned_goods_logs;
+DROP POLICY IF EXISTS "Public or authenticated access to returned_goods_logs" ON returned_goods_logs;
+CREATE POLICY "returned_goods_logs_policy" ON returned_goods_logs FOR ALL USING (true) WITH CHECK (true);
+
+-- ==============================================================================
+-- INDEXES & CONVENIENCE VIEWS FOR RETURNED GOODS REPORTING
+-- ==============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_sale_transactions_status ON sale_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_returned_goods_receipt ON returned_goods_logs(receipt_number);
+CREATE INDEX IF NOT EXISTS idx_returned_goods_store ON returned_goods_logs(store_id);
+
+CREATE OR REPLACE VIEW returned_goods_summary AS
+SELECT 
+  st.id AS transaction_id,
+  st.receipt_number,
+  st.date AS original_sale_date,
+  st.returned_at,
+  st.customer_name,
+  st.store_id,
+  st.cashier_name,
+  st.return_reason,
+  st.refund_method,
+  st.refund_amount,
+  st.restocked,
+  st.items AS returned_items
+FROM sale_transactions st
+WHERE st.status = 'returned';
+
+-- ==============================================================================
+-- SUPABASE STORAGE BUCKET & ROW LEVEL SECURITY (RLS) POLICIES
+-- Resolves: "new row violates row-level security policy" on storage uploads
+-- ==============================================================================
+
+-- 1. Ensure 'app-files' bucket exists and is public
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('app-files', 'app-files', true, 52428800, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'])
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- 2. Storage Objects RLS Policies for 'app-files'
+DROP POLICY IF EXISTS "Allow public select on app-files" ON storage.objects;
+CREATE POLICY "Allow public select on app-files"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'app-files');
+
+DROP POLICY IF EXISTS "Allow public insert on app-files" ON storage.objects;
+CREATE POLICY "Allow public insert on app-files"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'app-files');
+
+DROP POLICY IF EXISTS "Allow public update on app-files" ON storage.objects;
+CREATE POLICY "Allow public update on app-files"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'app-files')
+  WITH CHECK (bucket_id = 'app-files');
+
+DROP POLICY IF EXISTS "Allow public delete on app-files" ON storage.objects;
+CREATE POLICY "Allow public delete on app-files"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'app-files');
+

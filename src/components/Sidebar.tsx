@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  Settings,
 } from 'lucide-react';
 import { StoreLocation, UserAccount } from '../types';
 
@@ -22,8 +23,8 @@ interface SidebarProps {
   setIsMobileMenuOpen?: (open: boolean) => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebarCollapsed?: () => void;
-  activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns';
-  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns') => void;
+  activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings';
+  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings') => void;
   stores: StoreLocation[];
   activeStoreId: string;
   setActiveStoreId: (id: string) => void;
@@ -311,6 +312,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {!isSidebarCollapsed && <Sparkles className="w-3.5 h-3.5 text-amber-200" />}
             </button>
           )}
+
+          {/* System Settings */}
+          <button
+            onClick={() => setActiveTab('settings')}
+            title="System Settings & Preferences"
+            className={`flex items-center transition-all ${
+              isSidebarCollapsed
+                ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
+                : 'w-full gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-semibold'
+            } ${
+              activeTab === 'settings'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            {!isSidebarCollapsed && <span>System Settings</span>}
+          </button>
         </nav>
 
         {/* Bottom Toggle Button for Desktop */}

@@ -218,7 +218,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   products.forEach((p) => {
     p.variants.forEach((v) => {
       const current = v.stockByStore[selectedStoreFilter] || 0;
-      if (current <= v.reorderLevel) {
+      if (current < v.reorderLevel) {
         lowStockList.push({ product: p, variant: v, currentStock: current });
       }
     });
@@ -291,7 +291,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
           color: col.name,
           colorHex: col.hex,
           size: sz,
-          reorderLevel: 4,
+          reorderLevel: 1,
           stockByStore: buildStockObj(qty),
         });
       });
@@ -336,7 +336,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
       color: newVarColor.trim() || 'Standard',
       colorHex: '#1B263B',
       size: newVarSize.trim(),
-      reorderLevel: 4,
+      reorderLevel: 1,
       stockByStore: {
         'store-1': newVarStock,
         'store-2': Math.floor(newVarStock * 0.5),
@@ -697,7 +697,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                                   </button>
                                   <span
                                     className={`font-mono font-bold w-8 text-center ${
-                                      stock <= variant.reorderLevel
+                                      stock < variant.reorderLevel
                                         ? 'text-rose-400'
                                         : 'text-emerald-400'
                                     }`}
@@ -757,7 +757,24 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
             </div>
 
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  products.forEach((p) => {
+                    const updatedVariants = p.variants.map((v) => ({
+                      ...v,
+                      reorderLevel: 1,
+                    }));
+                    onUpdateMasterProduct({ ...p, variants: updatedVariants });
+                  });
+                }}
+                className="py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer"
+                title="Reset minimum safety threshold for all variants to 1 unit"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Set All Thresholds to 1</span>
+              </button>
               <button
                 onClick={exportPurchaseOrdersCSV}
                 className="py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
@@ -1025,12 +1042,12 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setSizesText('39, 40, 41, 42, 43, 44, 45');
+                    setSizesText('37, 38, 39, 40, 41, 42');
                     setNewCategory('Footwear & Shoes');
                   }}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-2.5 py-1 rounded-lg border border-blue-400/50 shadow-sm transition-colors cursor-pointer font-bold"
                 >
-                  👟 Shoes / EU (39-45)
+                  👟 Shoes / EU (37-42)
                 </button>
                 <button
                   type="button"
@@ -1286,7 +1303,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                         color: 'Navy Blue',
                         colorHex: '#1B263B',
                         size: 'M',
-                        reorderLevel: 4,
+                        reorderLevel: 1,
                         stockByStore: { 'store-1': 10, 'store-2': 5, 'store-3': 15 },
                       };
                       setEditingProduct({
@@ -1354,6 +1371,24 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                             setEditingProduct({ ...editingProduct, variants: updated });
                           }}
                           className="w-14 bg-slate-950 border border-slate-800 rounded p-1 text-emerald-400 font-mono font-bold text-xs outline-none text-center"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-slate-400">Min:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={v.reorderLevel ?? 1}
+                          onChange={(e) => {
+                            const updated = [...editingProduct.variants];
+                            updated[vIdx] = {
+                              ...v,
+                              reorderLevel: Math.max(0, Number(e.target.value)),
+                            };
+                            setEditingProduct({ ...editingProduct, variants: updated });
+                          }}
+                          className="w-12 bg-slate-950 border border-slate-800 rounded p-1 text-rose-400 font-mono font-bold text-xs outline-none text-center"
+                          title="Minimal Stock Threshold"
                         />
                       </div>
                       <button

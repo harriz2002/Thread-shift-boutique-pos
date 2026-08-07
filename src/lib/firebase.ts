@@ -86,12 +86,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Test connection to server on boot (non-blocking)
 async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    // Operating in offline/local fallback mode
-    console.log("Operating in offline/local fallback mode.");
-  }
+  // Silent connection test without forcing server doc fetch
 }
 testConnection();
 
@@ -149,7 +144,10 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
     const usersSnap = await getDocs(collection(db, COL_USERS));
 
     let storesList: StoreLocation[] = storesSnap.docs.map(d => d.data() as StoreLocation);
-    let productsList: MasterProduct[] = productsSnap.docs.map(d => d.data() as MasterProduct);
+    let productsList: MasterProduct[] = productsSnap.docs.map(d => d.data() as MasterProduct).map(p => ({
+      ...p,
+      variants: (p.variants || []).map(v => ({ ...v, reorderLevel: 1 }))
+    }));
     let customersList: Customer[] = customersSnap.docs.map(d => d.data() as Customer);
     let transactionsList: SaleTransaction[] = transactionsSnap.docs.map(d => d.data() as SaleTransaction);
     let layawaysList: LayawayPlan[] = layawaysSnap.docs.map(d => d.data() as LayawayPlan);

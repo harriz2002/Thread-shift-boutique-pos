@@ -164,8 +164,8 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              active_register_count = EXCLUDED.active_register_count`,
           [
             item.id,
-            item.name,
-            item.code,
+            item.name || 'Store Branch',
+            item.code || 'STR',
             item.address || '',
             item.phone || '',
             item.isFlagship || false,
@@ -191,16 +191,16 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              stock_quantity = EXCLUDED.stock_quantity`,
           [
             item.id,
-            item.sku,
-            item.name,
-            item.category,
+            item.sku || item.styleCode || item.id || 'SKU-000',
+            item.name || item.title || 'Apparel Garment',
+            item.category || 'Apparel',
             item.brand || '',
-            item.color || '',
-            item.size || '',
-            item.costPrice || 0,
-            item.sellingPrice || 0,
-            item.defaultSupplierId || '',
-            item.stockQuantity || 0,
+            item.color || (item.variants && item.variants[0]?.color) || '',
+            item.size || (item.variants && item.variants[0]?.size) || '',
+            item.costPrice || item.basePrice || (item.variants && item.variants[0]?.costPrice) || 0,
+            item.sellingPrice || item.basePrice || (item.variants && item.variants[0]?.sellingPrice) || 0,
+            item.defaultSupplierId || (item.variants && item.variants[0]?.supplierName) || '',
+            item.stockQuantity || (item.variants ? item.variants.reduce((acc: number, v: any) => acc + (Object.values(v.stockByStore || {}) as number[]).reduce((a: number, b: number) => a + Number(b), 0), 0) : 0),
           ]
         );
         break;
@@ -218,9 +218,9 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              department = EXCLUDED.department,
              is_active = EXCLUDED.is_active`,
           [
-            String(item.id),
-            item.email,
-            item.name,
+            String(item.id || item.uid || 'USER-000'),
+            item.email || 'user@threadsstyle.com',
+            item.name || 'Staff User',
             item.role || 'employee',
             item.pin || '1234',
             item.assignedStoreId || '',
@@ -244,7 +244,7 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              preferences = EXCLUDED.preferences`,
           [
             item.id,
-            item.name,
+            item.name || 'Customer',
             item.phone || '',
             item.email || '',
             item.loyaltyPoints || 0,
@@ -256,17 +256,31 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
         break;
       }
       case 'transactions': {
+        const txTimestamp = item.timestamp
+          ? (typeof item.timestamp === 'string' ? item.timestamp : new Date(item.timestamp).toISOString())
+          : (item.date || new Date().toISOString());
+
         await client.query(
           `INSERT INTO transactions (id, receipt_number, timestamp, store_id, cashier_name, customer_id, customer_name, subtotal, discount_amount, total_amount, payment_method, status, items_json)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            ON CONFLICT (id) DO UPDATE SET
+             receipt_number = EXCLUDED.receipt_number,
+             timestamp = EXCLUDED.timestamp,
+             store_id = EXCLUDED.store_id,
+             cashier_name = EXCLUDED.cashier_name,
+             customer_id = EXCLUDED.customer_id,
+             customer_name = EXCLUDED.customer_name,
+             subtotal = EXCLUDED.subtotal,
+             discount_amount = EXCLUDED.discount_amount,
+             total_amount = EXCLUDED.total_amount,
+             payment_method = EXCLUDED.payment_method,
              status = EXCLUDED.status,
              items_json = EXCLUDED.items_json`,
           [
             item.id,
-            item.receiptNumber,
-            item.timestamp,
-            item.storeId,
+            item.receiptNumber || item.receiptNo || (item.id ? `REC-${item.id}` : 'REC-000'),
+            txTimestamp,
+            item.storeId || item.store_id || 'STORE-01',
             item.cashierName || '',
             item.customerId || '',
             item.customerName || '',
@@ -291,9 +305,9 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              items_json = EXCLUDED.items_json`,
           [
             item.id,
-            item.planNumber,
-            item.customerId,
-            item.customerName,
+            item.planNumber || item.id || 'LAY-000',
+            item.customerId || 'CUST-000',
+            item.customerName || 'Customer',
             item.customerPhone || '',
             item.totalAmount || 0,
             item.amountPaid || 0,
@@ -315,9 +329,9 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              items_json = EXCLUDED.items_json`,
           [
             item.id,
-            item.transferNumber,
-            item.fromStoreId,
-            item.toStoreId,
+            item.transferNumber || item.id || 'TRF-000',
+            item.fromStoreId || 'STORE-01',
+            item.toStoreId || 'STORE-02',
             item.createdBy || '',
             item.createdDate || '',
             item.status || 'in-transit',
@@ -335,8 +349,8 @@ export async function upsertDocumentSQL(collectionName: string, item: any): Prom
              items_json = EXCLUDED.items_json`,
           [
             item.id,
-            item.poNumber,
-            item.supplierName,
+            item.poNumber || item.id || 'PO-000',
+            item.supplierName || 'Supplier',
             item.createdDate || '',
             item.expectedDate || '',
             item.status || 'draft',

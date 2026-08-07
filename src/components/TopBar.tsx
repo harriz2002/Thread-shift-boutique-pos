@@ -10,6 +10,7 @@ import {
   Users,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
 } from 'lucide-react';
 import { UserAccount } from '../types';
 
@@ -19,6 +20,7 @@ interface TopBarProps {
   onToggleSidebarCollapsed?: () => void;
   lowStockCount?: number;
   onOpenBarcodeScanner: () => void;
+  onOpenReceiptScanner?: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
   currentUser?: UserAccount | null;
@@ -26,12 +28,13 @@ interface TopBarProps {
   onOpenStaffModal?: () => void;
   dbMode?: 'firestore' | 'cloudsql';
   onOpenDatabaseModal?: () => void;
-  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns') => void;
+  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings') => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   lowStockCount = 0,
   onOpenBarcodeScanner,
+  onOpenReceiptScanner,
   isDarkMode = true,
   onToggleDarkMode,
   currentUser,
@@ -93,6 +96,18 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="sm:hidden">Scan Tag</span>
         </button>
 
+        {onOpenReceiptScanner && (
+          <button
+            onClick={onOpenReceiptScanner}
+            className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-all shadow-sm whitespace-nowrap cursor-pointer"
+            title="Scan & Verify Receipt QR Code with Web Camera or File Upload"
+          >
+            <QrCode className="w-4 h-4 text-emerald-400" />
+            <span className="hidden sm:inline">Verify Receipt QR</span>
+            <span className="sm:hidden">Verify QR</span>
+          </button>
+        )}
+
         {/* Dark / Light Mode Toggle */}
         {onToggleDarkMode && (
           <button
@@ -141,6 +156,16 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="sm:hidden">Staff</span>
           </button>
         )}
+
+        {/* System Settings Quick Button */}
+        <button
+          onClick={() => setActiveTab('settings')}
+          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition-all shadow-sm whitespace-nowrap cursor-pointer"
+          title="System Settings & Preferences"
+        >
+          <Settings className="w-4 h-4 text-amber-400" />
+          <span className="hidden lg:inline">Settings</span>
+        </button>
 
         {/* Platform User Role Badge / Sign In Button */}
         {onOpenAuthModal && (

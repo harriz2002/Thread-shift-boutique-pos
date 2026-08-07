@@ -1,3 +1,21 @@
+export interface SystemSettings {
+  businessName: string;
+  businessSubtitle: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  logoUrl?: string;
+  currencySymbol: string;
+  currencyCode: string;
+  defaultTaxRate: number;
+  receiptHeader: string;
+  receiptFooterMessage: string;
+  receiptReturnPolicy: string;
+  showReceiptBarcode: boolean;
+  defaultSafetyThreshold: number;
+  defaultSupplierName: string;
+}
+
 export type ClothingSize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | string;
 
 export type ProductCategory = 
@@ -63,6 +81,8 @@ export type PaymentMethod = 'cash' | 'card' | 'mpesa' | 'store_credit' | 'split'
 export interface PaymentDetail {
   method: PaymentMethod;
   amount: number;
+  tenderedAmount?: number;
+  changeAmount?: number;
   referenceNumber?: string;
   phoneNumber?: string;
   timestamp: string;
@@ -130,6 +150,8 @@ export interface HoldCart {
 export interface SaleTransaction {
   id: string;
   receiptNumber: string;
+  sequentialNumber?: number | string;
+  registerId?: string;
   date: string;
   storeId: string;
   cashierName: string;
@@ -141,10 +163,19 @@ export interface SaleTransaction {
   tax: number;
   total: number;
   payments: PaymentDetail[];
+  tenderedAmount?: number;
+  changeAmount?: number;
   loyaltyPointsEarned: number;
   pointsRedeemed: number;
   status: 'completed' | 'returned' | 'exchanged';
+  signatureValue?: string;
+  chainingValue?: string;
   returnReason?: string;
+  refundMethod?: PaymentMethod;
+  refundAmount?: number;
+  returnedAt?: string;
+  restocked?: boolean;
+  returnedVariantIds?: string[];
   returnedItems?: { variantId: string; quantity: number; refundAmount: number }[];
 }
 

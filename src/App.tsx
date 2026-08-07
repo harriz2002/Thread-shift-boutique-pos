@@ -15,7 +15,8 @@ import {
   INITIAL_LAYAWAYS, 
   INITIAL_HOLDS, 
   INITIAL_TRANSFERS,
-  INITIAL_USERS
+  INITIAL_USERS,
+  INITIAL_SYSTEM_SETTINGS,
 } from './data/mockData';
 import { 
   StoreLocation, 
@@ -29,7 +30,8 @@ import {
   ReorderPO, 
   CartItem, 
   PaymentMethod,
-  UserAccount
+  UserAccount,
+  SystemSettings,
 } from './types';
 
 // Components
@@ -51,7 +53,21 @@ import { DatabaseStatusModal } from './components/DatabaseStatusModal';
 import { StoreManagerModal } from './components/StoreManagerModal';
 import { AuthModal } from './components/AuthModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
+import { SystemSettingsManager } from './components/SystemSettingsManager';
+import { ReceiptQrScannerModal } from './components/ReceiptQrScannerModal';
 import { useGlobalBarcodeScanner } from './hooks/useBarcodeScanner';
+
+// Helper to normalize safety threshold level to 1 for all product variants
+const normalizeProductsThreshold = (prods: MasterProduct[]): MasterProduct[] => {
+  if (!prods) return [];
+  return prods.map((p) => ({
+    ...p,
+    variants: (p.variants || []).map((v) => ({
+      ...v,
+      reorderLevel: 1,
+    })),
+  }));
+};
 
 export default function App() {
   // Application State with LocalStorage fallbacks for persistent sessions
@@ -82,7 +98,8 @@ export default function App() {
 
   const [products, setProducts] = useState<MasterProduct[]>(() => {
     const saved = localStorage.getItem('ts_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    const raw = saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    return normalizeProductsThreshold(raw);
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
@@ -112,6 +129,45 @@ export default function App() {
 
   const [purchaseOrders, setPurchaseOrders] = useState<ReorderPO[]>([]);
 
+  // System Settings state
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const saved = localStorage.getItem('ts_system_settings');
+    return saved ? JSON.parse(saved) : INITIAL_SYSTEM_SETTINGS;
+  });
+
+  const handleUpdateSystemSettings = (newSettings: SystemSettings) => {
+    setSystemSettings(newSettings);
+    try {
+      localStorage.setItem('ts_system_settings', JSON.stringify(newSettings));
+    } catch (e) {
+      console.warn('LocalStorage save error:', e);
+    }
+    saveDocument('settings', { id: 'global', ...newSettings }).catch((e) =>
+      console.warn('Firebase settings sync error:', e)
+    );
+
+    // Sync active store location address and phone in stores list
+    setStores((prevStores) => {
+      const updated = prevStores.map((s) => {
+        if (s.id === activeStoreId) {
+          return {
+            ...s,
+            address: newSettings.address || s.address,
+            phone: newSettings.phone || s.phone,
+          };
+        }
+        return s;
+      });
+      try {
+        localStorage.setItem('ts_stores', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage stores save error:', e);
+      }
+      updated.forEach((s) => saveDocument('stores', s));
+      return updated;
+    });
+  };
+
   // Theme state (Dark / Light Mode)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('ts_theme');
@@ -123,12 +179,13 @@ export default function App() {
 
   // Active UI tab
   const [activeTab, setActiveTab] = useState<
-    'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns'
+    'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings'
   >('pos');
 
   // Modal states
   const [selectedMatrixProduct, setSelectedMatrixProduct] = useState<MasterProduct | null>(null);
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState<boolean>(false);
+  const [isReceiptScannerOpen, setIsReceiptScannerOpen] = useState<boolean>(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState<boolean>(false);
   const [isNewLayawayModalOpen, setIsNewLayawayModalOpen] = useState<boolean>(false);
   const [activeReceiptTx, setActiveReceiptTx] = useState<SaleTransaction | null>(null);
@@ -266,7 +323,7 @@ export default function App() {
         if (!mounted) return;
         if (data && data.products && data.products.length > 0) {
           if (data.stores && data.stores.length > 0) setStores(data.stores);
-          setProducts(data.products);
+          setProducts(normalizeProductsThreshold(data.products));
           setCustomers(data.customers);
           setTransactions(data.transactions);
           setLayaways(data.layaways);
@@ -391,7 +448,7 @@ export default function App() {
 
   // Calculate low stock items count
   const lowStockCount = products.reduce((count, p) => {
-    const hasLow = p.variants.some((v) => (v.stockByStore[activeStoreId] || 0) <= v.reorderLevel);
+    const hasLow = p.variants.some((v) => (v.stockByStore[activeStoreId] || 0) < v.reorderLevel);
     return count + (hasLow ? 1 : 0);
   }, 0);
 
@@ -642,7 +699,8 @@ export default function App() {
     returnedVariantIds: string[],
     refundAmount: number,
     restock: boolean,
-    refundMethod: PaymentMethod
+    refundMethod: PaymentMethod,
+    returnReason: string = 'Garment Return / Swap'
   ) => {
     if (restock) {
       setProducts((prev) =>
@@ -665,9 +723,22 @@ export default function App() {
       );
     }
 
-    // Update transaction status
+    // Update transaction status and store return log metadata
     setTransactions((prev) =>
-      prev.map((t) => (t.id === transactionId ? { ...t, status: 'returned' } : t))
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              status: 'returned',
+              returnReason,
+              refundMethod,
+              refundAmount,
+              returnedAt: new Date().toISOString(),
+              restocked: restock,
+              returnedVariantIds,
+            }
+          : t
+      )
     );
   };
 
@@ -820,6 +891,7 @@ export default function App() {
           onToggleSidebarCollapsed={toggleSidebarCollapsed}
           lowStockCount={lowStockCount}
           onOpenBarcodeScanner={() => setIsBarcodeScannerOpen(true)}
+          onOpenReceiptScanner={() => setIsReceiptScannerOpen(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
           currentUser={currentUser}
@@ -906,6 +978,21 @@ export default function App() {
             stores={stores}
           />
         )}
+
+        {activeTab === 'settings' && (
+          <SystemSettingsManager
+            settings={systemSettings}
+            onUpdateSettings={handleUpdateSystemSettings}
+            stores={stores}
+            activeStoreId={activeStoreId}
+            onOpenStoreManager={() => setIsStoreManagerOpen(true)}
+            products={products}
+            onUpdateMasterProduct={handleUpdateMasterProduct}
+            currentUser={currentUser}
+            dbMode={dbMode}
+            onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
+          />
+        )}
       </main>
       </div>
 
@@ -934,6 +1021,13 @@ export default function App() {
         />
       )}
 
+      {/* 2.1. Receipt QR Code Real Camera & File Scanner Modal */}
+      {isReceiptScannerOpen && (
+        <ReceiptQrScannerModal
+          onClose={() => setIsReceiptScannerOpen(false)}
+        />
+      )}
+
       {/* 3. Checkout Modal */}
       {isCheckoutModalOpen && (
         <CheckoutModal
@@ -941,6 +1035,7 @@ export default function App() {
           customers={customers}
           activeStoreId={activeStoreId}
           store={activeStoreObj}
+          currentUser={currentUser}
           onClose={() => setIsCheckoutModalOpen(false)}
           onCompleteSale={handleCompleteSale}
         />
@@ -951,6 +1046,7 @@ export default function App() {
         <ReceiptModal
           transaction={activeReceiptTx}
           store={stores.find((s) => s.id === activeReceiptTx.storeId)}
+          systemSettings={systemSettings}
           onClose={() => setActiveReceiptTx(null)}
         />
       )}

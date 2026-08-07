@@ -1,4 +1,22 @@
-import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer, UserAccount } from '../types';
+import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer, UserAccount, SystemSettings } from '../types';
+
+export const INITIAL_SYSTEM_SETTINGS: SystemSettings = {
+  businessName: 'Threads & Style',
+  businessSubtitle: 'Kenyan Apparel POS',
+  tagline: 'Flagship Boutique (Downtown)',
+  address: '450 Fashion Avenue, Suite 101, City Center',
+  phone: '+254 700 123 456',
+  logoUrl: '',
+  currencySymbol: 'KES',
+  currencyCode: 'KES',
+  defaultTaxRate: 16,
+  receiptHeader: 'Threads & Style',
+  receiptFooterMessage: 'Thank you for shopping at Threads & Style!',
+  receiptReturnPolicy: 'Exchanges accepted within 14 days with receipt tag intact.',
+  showReceiptBarcode: true,
+  defaultSafetyThreshold: 1,
+  defaultSupplierName: 'Threads & Style Wholesalers',
+};
 
 export const INITIAL_STORES: StoreLocation[] = [
   {
@@ -47,7 +65,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Oatmeal Cream',
         colorHex: '#EAE3D2',
         size: 'S',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 5, 'store-2': 3, 'store-3': 12 },
       },
       {
@@ -57,7 +75,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Oatmeal Cream',
         colorHex: '#EAE3D2',
         size: 'M',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 2, 'store-2': 1, 'store-3': 8 },
       },
       {
@@ -67,7 +85,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Oatmeal Cream',
         colorHex: '#EAE3D2',
         size: 'L',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 6, 'store-2': 4, 'store-3': 15 },
       },
       {
@@ -77,7 +95,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Midnight Navy',
         colorHex: '#1B263B',
         size: 'M',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 1, 'store-2': 0, 'store-3': 5 },
       },
       {
@@ -87,7 +105,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Midnight Navy',
         colorHex: '#1B263B',
         size: 'L',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 4, 'store-2': 2, 'store-3': 10 },
       },
       {
@@ -97,7 +115,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Terracotta Clay',
         colorHex: '#C05C46',
         size: 'M',
-        reorderLevel: 2,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 3, 'store-2': 2, 'store-3': 6 },
       },
     ],
@@ -123,7 +141,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Midnight Noir Floral',
         colorHex: '#1C1C1E',
         size: 'S',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 4, 'store-2': 2, 'store-3': 10 },
       },
       {
@@ -133,7 +151,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Midnight Noir Floral',
         colorHex: '#1C1C1E',
         size: 'M',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 1, 'store-2': 1, 'store-3': 3 },
       },
       {
@@ -143,7 +161,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Midnight Noir Floral',
         colorHex: '#1C1C1E',
         size: 'L',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 3, 'store-2': 5, 'store-3': 7 },
       },
       {
@@ -153,7 +171,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Sage Olive',
         colorHex: '#556B2F',
         size: 'M',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 2, 'store-2': 0, 'store-3': 4 },
       },
     ],
@@ -179,7 +197,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FAFAFA',
         size: 'S',
-        reorderLevel: 5,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 12, 'store-2': 8, 'store-3': 25 },
       },
       {
@@ -189,7 +207,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FAFAFA',
         size: 'M',
-        reorderLevel: 8,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 3, 'store-2': 2, 'store-3': 18 },
       },
       {
@@ -199,7 +217,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FAFAFA',
         size: 'L',
-        reorderLevel: 8,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 15, 'store-2': 10, 'store-3': 30 },
       },
       {
@@ -209,7 +227,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FAFAFA',
         size: 'XL',
-        reorderLevel: 5,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 8, 'store-2': 4, 'store-3': 14 },
       },
       {
@@ -219,7 +237,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Washed Charcoal Black',
         colorHex: '#282828',
         size: 'M',
-        reorderLevel: 6,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 10, 'store-2': 6, 'store-3': 20 },
       },
       {
@@ -229,7 +247,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Deep Burgundy',
         colorHex: '#58111A',
         size: 'M',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 4, 'store-2': 3, 'store-3': 10 },
       },
     ],
@@ -255,7 +273,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Vintage Indigo Wash',
         colorHex: '#2C3E50',
         size: 'S',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 7, 'store-2': 4, 'store-3': 16 },
       },
       {
@@ -265,7 +283,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Vintage Indigo Wash',
         colorHex: '#2C3E50',
         size: 'M',
-        reorderLevel: 5,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 1, 'store-2': 2, 'store-3': 12 },
       },
       {
@@ -275,7 +293,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Vintage Indigo Wash',
         colorHex: '#2C3E50',
         size: 'L',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 5, 'store-2': 3, 'store-3': 11 },
       },
       {
@@ -285,7 +303,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Raw Dark Wash',
         colorHex: '#161F28',
         size: 'M',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 6, 'store-2': 2, 'store-3': 9 },
       },
     ],
@@ -311,7 +329,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Camel Tan',
         colorHex: '#C19A6B',
         size: 'S',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 3, 'store-2': 2, 'store-3': 8 },
       },
       {
@@ -321,7 +339,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Camel Tan',
         colorHex: '#C19A6B',
         size: 'M',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 0, 'store-2': 1, 'store-3': 6 },
       },
       {
@@ -331,7 +349,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Winter Off-White',
         colorHex: '#F5F5DC',
         size: 'M',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 4, 'store-2': 3, 'store-3': 9 },
       },
     ],
@@ -357,7 +375,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Cognac Tan',
         colorHex: '#9E4714',
         size: 'S',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 8, 'store-2': 5, 'store-3': 15 },
       },
       {
@@ -367,7 +385,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Cognac Tan',
         colorHex: '#9E4714',
         size: 'M',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 6, 'store-2': 4, 'store-3': 12 },
       },
       {
@@ -377,7 +395,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Onyx Black',
         colorHex: '#111111',
         size: 'M',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 10, 'store-2': 7, 'store-3': 20 },
       },
     ],
@@ -403,7 +421,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Cognac Brown',
         colorHex: '#7B3F00',
         size: '40',
-        reorderLevel: 2,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 4, 'store-2': 2, 'store-3': 8 },
       },
       {
@@ -413,7 +431,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Cognac Brown',
         colorHex: '#7B3F00',
         size: '41',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 6, 'store-2': 3, 'store-3': 10 },
       },
       {
@@ -423,7 +441,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Cognac Brown',
         colorHex: '#7B3F00',
         size: '42',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 8, 'store-2': 5, 'store-3': 12 },
       },
       {
@@ -433,7 +451,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Onyx Black',
         colorHex: '#111111',
         size: '42',
-        reorderLevel: 2,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 5, 'store-2': 2, 'store-3': 8 },
       },
       {
@@ -443,7 +461,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Onyx Black',
         colorHex: '#111111',
         size: '43',
-        reorderLevel: 2,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 3, 'store-2': 1, 'store-3': 6 },
       },
     ],
@@ -469,7 +487,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FFFFFF',
         size: '39',
-        reorderLevel: 3,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 5, 'store-2': 3, 'store-3': 10 },
       },
       {
@@ -479,7 +497,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FFFFFF',
         size: '40',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 7, 'store-2': 4, 'store-3': 14 },
       },
       {
@@ -489,7 +507,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FFFFFF',
         size: '41',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 8, 'store-2': 5, 'store-3': 15 },
       },
       {
@@ -499,7 +517,7 @@ export const INITIAL_PRODUCTS: MasterProduct[] = [
         color: 'Optical White',
         colorHex: '#FFFFFF',
         size: '42',
-        reorderLevel: 4,
+        reorderLevel: 1,
         stockByStore: { 'store-1': 10, 'store-2': 6, 'store-3': 18 },
       },
     ],
@@ -564,6 +582,48 @@ export const INITIAL_CUSTOMERS: Customer[] = [
 ];
 
 export const INITIAL_TRANSACTIONS: SaleTransaction[] = [
+  {
+    id: 'tx-1000',
+    receiptNumber: 'REC-2026-8321',
+    date: '2026-08-06T10:15:00Z',
+    storeId: 'store-1',
+    cashierName: 'Jane Doe (Flagship)',
+    customerId: 'cust-1',
+    customerName: 'Walk-In Customer',
+    subtotal: 11200,
+    discount: 0,
+    tax: 0,
+    total: 11200,
+    loyaltyPointsEarned: 0,
+    pointsRedeemed: 0,
+    status: 'returned',
+    returnReason: 'Size Swap (Medium to Large)',
+    refundMethod: 'mpesa',
+    refundAmount: 11200,
+    returnedAt: '2026-08-06T10:30:00Z',
+    restocked: true,
+    returnedVariantIds: ['v-dr02-blk-m'],
+    items: [
+      {
+        cartItemId: 'item-8321',
+        product: INITIAL_PRODUCTS[1], // Silk Wrap Dress
+        variant: INITIAL_PRODUCTS[1].variants[0], // Size M
+        quantity: 1,
+        storeId: 'store-1',
+        unitPrice: 11200,
+        discountAmount: 0,
+      },
+    ],
+    payments: [
+      {
+        method: 'mpesa',
+        amount: 11200,
+        phoneNumber: '+254 712 000 000',
+        referenceNumber: 'QK99R8321M',
+        timestamp: '2026-08-06T10:16:00Z',
+      },
+    ],
+  },
   {
     id: 'tx-1001',
     receiptNumber: 'REC-2026-8901',

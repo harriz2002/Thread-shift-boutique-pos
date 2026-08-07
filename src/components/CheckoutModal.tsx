@@ -19,7 +19,8 @@ import {
   PaymentMethod, 
   PaymentDetail, 
   SaleTransaction, 
-  StoreLocation 
+  StoreLocation,
+  UserAccount 
 } from '../types';
 import { formatCurrency } from '../utils/format';
 
@@ -28,6 +29,7 @@ interface CheckoutModalProps {
   customers: Customer[];
   activeStoreId: string;
   store?: StoreLocation;
+  currentUser?: UserAccount | null;
   onClose: () => void;
   onCompleteSale: (transaction: SaleTransaction) => void;
 }
@@ -37,6 +39,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   customers,
   activeStoreId,
   store,
+  currentUser,
   onClose,
   onCompleteSale,
 }) => {
@@ -102,18 +105,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const now = new Date().toISOString();
 
     const paymentsList: PaymentDetail[] = [];
+    let transactionTendered: number | undefined;
+    let transactionChange: number | undefined;
 
     if (paymentMethod === 'cash') {
+      const cashNum = parseFloat(tenderedCash);
+      const actualTendered = !isNaN(cashNum) && cashNum > 0 ? cashNum : grandTotal;
+      const changeVal = Math.max(0, actualTendered - grandTotal);
+      transactionTendered = actualTendered;
+      transactionChange = changeVal;
+
       paymentsList.push({
         method: 'cash',
         amount: grandTotal,
+        tenderedAmount: actualTendered,
+        changeAmount: changeVal,
         timestamp: now,
       });
     } else if (paymentMethod === 'card') {
       paymentsList.push({
         method: 'card',
         amount: grandTotal,
-        referenceNumber: `AUTH-${Math.floor(100000 + Math.random() * 900000)}-VISA`,
         timestamp: now,
       });
     } else if (paymentMethod === 'mpesa') {
@@ -126,7 +138,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
     } else if (paymentMethod === 'split') {
       if (splitAmounts.cash > 0) {
-        paymentsList.push({ method: 'cash', amount: splitAmounts.cash, timestamp: now });
+        const cashNum = parseFloat(tenderedCash);
+        const actualTendered = !isNaN(cashNum) && cashNum >= splitAmounts.cash ? cashNum : splitAmounts.cash;
+        const changeVal = Math.max(0, actualTendered - splitAmounts.cash);
+        if (changeVal > 0) {
+          transactionTendered = actualTendered;
+          transactionChange = changeVal;
+        }
+
+        paymentsList.push({
+          method: 'cash',
+          amount: splitAmounts.cash,
+          tenderedAmount: actualTendered,
+          changeAmount: changeVal,
+          timestamp: now,
+        });
       }
       if (splitAmounts.mpesa > 0) {
         paymentsList.push({
@@ -148,13 +174,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
 
     const earnedPoints = Math.floor(grandTotal / 100);
+    const resolvedCashier = currentUser
+      ? `${currentUser.name}${currentUser.role === 'admin' ? ' (Admin)' : ''}`
+      : `Cashier (${store?.code || 'Main'})`;
+
+    const registerIdentifier = `REG-${store?.code || 'POS'}-01`;
+    const seqNumMatch = receiptNum.match(/\d+/);
+    const seqNum = seqNumMatch ? seqNumMatch[0] : `${Date.now()}`.slice(-6);
+
+    const sigVal = `SCE-SIG-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+    const chainVal = `SCE-CHAIN-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     const newTransaction: SaleTransaction = {
       id: `tx-${Date.now()}`,
       receiptNumber: receiptNum,
+      sequentialNumber: seqNum,
+      registerId: registerIdentifier,
       date: now,
       storeId: activeStoreId,
-      cashierName: `Cashier (${store?.code || 'Main'})`,
+      cashierName: resolvedCashier,
       customerId: selectedCustomer?.id,
       customerName: selectedCustomer?.name,
       items: cart,
@@ -163,9 +201,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       tax,
       total: grandTotal,
       payments: paymentsList,
+      tenderedAmount: transactionTendered,
+      changeAmount: transactionChange,
       loyaltyPointsEarned: earnedPoints,
       pointsRedeemed: redeemedPoints,
       status: 'completed',
+      signatureValue: sigVal,
+      chainingValue: chainVal,
     };
 
     setIsProcessing(false);
@@ -427,24 +469,66 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {paymentMethod === 'cash' && (
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
-                  <label className="text-xs text-slate-300 font-medium block">
-                    Tendered Cash Amount (KSh):
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs text-slate-300 font-semibold block">
+                      Tendered Cash Amount (KSh):
+                    </label>
+                    <span className="text-[10px] text-slate-400">Enter cash received from customer</span>
+                  </div>
+
                   <input
                     type="number"
                     value={tenderedCash}
                     onChange={(e) => setTenderedCash(e.target.value)}
                     placeholder={`e.g. ${Math.ceil(grandTotal)}`}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-400 font-mono font-bold focus:border-amber-500 outline-none"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:border-amber-500 outline-none"
                   />
-                  {cashNumber > 0 && (
+
+                  {/* Preset Bill Quick Select */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setTenderedCash(grandTotal.toString())}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-300 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Exact ({formatCurrency(grandTotal)})
+                    </button>
+                    {[500, 1000, 2000, 5000].map((note) => (
+                      <button
+                        key={note}
+                        type="button"
+                        onClick={() => setTenderedCash(note.toString())}
+                        className="px-2.5 py-1 text-[11px] font-mono font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg transition-colors cursor-pointer"
+                      >
+                        KSh {note.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Change Calculation Box */}
+                  <div className="mt-3 p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1.5">
+                    <div className="flex justify-between items-center text-xs text-slate-400">
+                      <span>Total Due:</span>
+                      <span className="font-mono font-bold text-slate-200">{formatCurrency(grandTotal)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-400">
+                      <span>Cash Tendered:</span>
+                      <span className="font-mono font-bold text-amber-400">
+                        {cashNumber > 0 ? formatCurrency(cashNumber) : formatCurrency(grandTotal)}
+                      </span>
+                    </div>
                     <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-800">
-                      <span className="text-slate-400">Change Due to Customer:</span>
-                      <strong className={`font-mono text-sm ${cashNumber >= grandTotal ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {formatCurrency(cashChange)}
+                      <span className="font-bold text-slate-200">Change Due to Customer:</span>
+                      <strong className={`font-mono text-base ${cashNumber >= grandTotal || cashNumber === 0 ? 'text-emerald-400 font-extrabold' : 'text-rose-400'}`}>
+                        {formatCurrency(cashNumber > 0 ? cashChange : 0)}
                       </strong>
                     </div>
-                  )}
+                    {cashNumber > 0 && cashNumber < grandTotal && (
+                      <p className="text-[10px] text-rose-400 font-medium pt-1">
+                        ⚠️ Cash tendered is KSh {(grandTotal - cashNumber).toLocaleString()} less than total due.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -441,8 +441,8 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         const storeName = (stores || []).find((s) => s.id === storeId)?.name || 'Default Store';
         storeStockMap[storeName] = (storeStockMap[storeName] || 0) + numQty;
 
-        // Low stock warning (< 10 units)
-        if (numQty < 10) {
+        // Low stock warning (falling below safety reorder threshold)
+        if (numQty < (v.reorderLevel ?? 1)) {
           lowStockItems.push({
             productTitle: prod.title || 'Garment Item',
             color: v.color || 'Standard',
@@ -488,7 +488,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
     return {
       summaryHeadline: `Strong performance in ${topProd} and Footwear lines across store locations`,
-      topTrendObservation: `Top selling item is '${topProd}' (${topUnits} units sold). Sizes M, L, and shoe sizes 40-42 show highest turnover. M-Pesa payments account for ${mpesaShare}% of revenue.`,
+      topTrendObservation: `Top selling item is '${topProd}' (${topUnits} units sold). Sizes M, L, and shoe sizes 37-42 show highest turnover. M-Pesa payments account for ${mpesaShare}% of revenue.`,
       reorderAlerts: reorders,
       slowMovingMarkdownAdvice: slowMovers.length > 0 ? slowMovers : [
         {
@@ -1000,7 +1000,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
                       <td className="py-3 px-3 text-center">
                         <span
                           className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            row.stock <= row.variant.reorderLevel
+                            row.stock < row.variant.reorderLevel
                               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}
@@ -1277,7 +1277,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-400" />
-              <span>Low-Stock Garments Warning (&lt; 10 units)</span>
+              <span>Low-Stock Garments Warning (≤ 1 Unit Threshold)</span>
             </h3>
             <span className="text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
               {lowStockItems.length} Alerts
