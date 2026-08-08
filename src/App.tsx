@@ -17,6 +17,7 @@ import {
   INITIAL_TRANSFERS,
   INITIAL_USERS,
   INITIAL_SYSTEM_SETTINGS,
+  INITIAL_EXPENSES,
 } from './data/mockData';
 import { 
   StoreLocation, 
@@ -32,6 +33,7 @@ import {
   PaymentMethod,
   UserAccount,
   SystemSettings,
+  Expense,
 } from './types';
 
 // Components
@@ -129,6 +131,11 @@ export default function App() {
   });
 
   const [purchaseOrders, setPurchaseOrders] = useState<ReorderPO[]>([]);
+
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    const saved = localStorage.getItem('ts_expenses');
+    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+  });
 
   // System Settings state
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
@@ -442,6 +449,13 @@ export default function App() {
       users.forEach((u) => saveSupabaseDocument(SUPABASE_TABLES.USERS, u));
     }
   }, [users, isSupabaseLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_expenses', JSON.stringify(expenses));
+    if (isFirebaseLoaded) {
+      expenses.forEach((e) => saveDocument('expenses', e));
+    }
+  }, [expenses, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_theme', isDarkMode ? 'dark' : 'light');
@@ -1000,6 +1014,8 @@ export default function App() {
             stores={stores}
             currentUser={currentUser}
             systemSettings={systemSettings}
+            expenses={expenses}
+            onUpdateExpenses={setExpenses}
           />
         )}
 

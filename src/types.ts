@@ -232,3 +232,13 @@ export interface UserAccount {
   createdAt: string;
   isActive: boolean;
 }
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  amount: number;
+  description: string;
+  storeId: string;
+  createdAt: string;
+}

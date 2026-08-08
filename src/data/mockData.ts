@@ -1,4 +1,4 @@
-import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer, UserAccount, SystemSettings } from '../types';
+import { StoreLocation, MasterProduct, Customer, SaleTransaction, LayawayPlan, HoldCart, StockTransfer, UserAccount, SystemSettings, Expense } from '../types';
 
 export const INITIAL_SYSTEM_SETTINGS: SystemSettings = {
   businessName: 'Threads & Style',
@@ -897,4 +897,43 @@ export const INITIAL_USERS: UserAccount[] = [
     createdAt: '2026-04-01',
     isActive: true,
   },
+];
+
+export const INITIAL_EXPENSES: Expense[] = [
+  {
+    id: 'exp-1',
+    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    category: 'Rent',
+    amount: 15000,
+    description: 'Monthly store rental share',
+    storeId: 'store-1',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-2',
+    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    category: 'Utilities',
+    amount: 3200,
+    description: 'Electricity & Internet bill',
+    storeId: 'store-1',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-3',
+    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    category: 'Wages',
+    amount: 8000,
+    description: 'Casual staff daily wages',
+    storeId: 'store-2',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-4',
+    date: new Date().toISOString().slice(0, 10),
+    category: 'Marketing',
+    amount: 2500,
+    description: 'Flyer printing & local social media promo',
+    storeId: 'store-1',
+    createdAt: new Date().toISOString(),
+  }
 ];

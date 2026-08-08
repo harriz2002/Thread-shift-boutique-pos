@@ -24,9 +24,12 @@ import {
   Printer,
   Calendar,
   Filter,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Plus,
+  Trash2,
+  PlusCircle
 } from 'lucide-react';
-import { SaleTransaction, MasterProduct, StoreLocation, ProductVariant, UserAccount, SystemSettings } from '../types';
+import { SaleTransaction, MasterProduct, StoreLocation, ProductVariant, UserAccount, SystemSettings, Expense } from '../types';
 import { formatCurrency } from '../utils/format';
 import { ReceiptModal } from './ReceiptModal';
 
@@ -36,6 +39,8 @@ interface SalesAnalyticsProps {
   stores: StoreLocation[];
   currentUser?: UserAccount | null;
   systemSettings?: SystemSettings;
+  expenses?: Expense[];
+  onUpdateExpenses?: React.Dispatch<React.SetStateAction<Expense[]>>;
 }
 
 export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
@@ -44,12 +49,14 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   stores,
   currentUser,
   systemSettings,
+  expenses = [],
+  onUpdateExpenses,
 }) => {
   const isEmployee = currentUser?.role === 'employee';
   const employeeStoreId = currentUser?.assignedStoreId || stores[0]?.id || 'store-1';
   const employeeStoreObj = stores.find((s) => s.id === employeeStoreId) || stores[0];
 
-  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report'>(
+  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report' | 'expenses'>(
     isEmployee ? 'daily_sales' : 'overview'
   );
 
@@ -76,6 +83,51 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   });
   const [reportCategoryFilter, setReportCategoryFilter] = useState<string>('all');
   const [selectedReceiptTx, setSelectedReceiptTx] = useState<SaleTransaction | null>(null);
+
+  // Expense Form Local States
+  const [expAmount, setExpAmount] = useState<string>('');
+  const [expDate, setExpDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [expCategory, setExpCategory] = useState<string>('Rent');
+  const [expStoreId, setExpStoreId] = useState<string>('all');
+  const [expDescription, setExpDescription] = useState<string>('');
+  const [expCategoryFilter, setExpCategoryFilter] = useState<string>('all');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleAddExpenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(expAmount);
+    if (isNaN(amt) || amt <= 0) {
+      return;
+    }
+    if (!onUpdateExpenses) return;
+
+    const newExpense: Expense = {
+      id: `exp-${Date.now()}`,
+      amount: amt,
+      date: expDate,
+      category: expCategory,
+      description: expDescription.trim() || `${expCategory} operational expense`,
+      storeId: expStoreId,
+      createdAt: new Date().toISOString(),
+    };
+
+    onUpdateExpenses((prev) => [newExpense, ...prev]);
+
+    // Reset fields
+    setExpAmount('');
+    setExpDescription('');
+    setExpDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    if (!onUpdateExpenses) return;
+    if (confirmDeleteId === id) {
+      onUpdateExpenses((prev) => prev.filter((ex) => ex.id !== id));
+      setConfirmDeleteId(null);
+    } else {
+      setConfirmDeleteId(id);
+    }
+  };
 
   const [aiInsights, setAiInsights] = useState<any | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -366,6 +418,35 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   const grossProfit = totalRevenue - totalCost;
   const grossMarginPercent = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
+  // Operational Expenses & Net Profit calculations
+  const totalExpensesOverall = (expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  const netProfitOverall = grossProfit - totalExpensesOverall;
+
+  const filteredExpenses = (expenses || []).filter((e) => {
+    const matchesStore = reportStoreFilter === 'all' || e.storeId === reportStoreFilter;
+    const matchesDate = selectedReportDate === 'all' || e.date === selectedReportDate;
+    return matchesStore && matchesDate;
+  });
+  const totalExpensesFiltered = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const filteredExpensesList = (expenses || []).filter((e) => {
+    const matchesStore = reportStoreFilter === 'all' || e.storeId === reportStoreFilter;
+    const matchesDate = selectedReportDate === 'all' || e.date === selectedReportDate;
+    const matchesCategory = expCategoryFilter === 'all' || e.category === expCategoryFilter;
+    return matchesStore && matchesDate && matchesCategory;
+  });
+
+  const filteredRevenue = filteredDailyTransactions.reduce((acc, tx) => acc + (tx.total || 0), 0);
+  let filteredCost = 0;
+  filteredDailyTransactions.forEach((tx) => {
+    (tx.items || []).forEach((item) => {
+      const cost = item.product?.costPrice || (item.unitPrice ? item.unitPrice * 0.5 : 0);
+      filteredCost += cost * (item.quantity || 1);
+    });
+  });
+  const filteredGrossProfit = filteredRevenue - filteredCost;
+  const filteredNetProfit = filteredGrossProfit - totalExpensesFiltered;
+
   // Size distribution breakdown
   const sizeCounts: Record<string, number> = {};
   (transactions || []).forEach((tx) => {
@@ -639,6 +720,20 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             >
               <Boxes className="w-3.5 h-3.5" />
               <span>Inventory Stock Report</span>
+            </button>
+          )}
+
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveReportTab('expenses')}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeReportTab === 'expenses'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <DollarSign className="w-3.5 h-3.5" />
+              <span>Operational Expenses</span>
             </button>
           )}
         </div>
@@ -1074,7 +1169,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-lg">
           <div className="flex justify-between items-center text-xs text-slate-400">
@@ -1103,6 +1198,32 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-lg">
           <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Operational Expenses</span>
+            <DollarSign className="w-4 h-4 text-rose-400" />
+          </div>
+          <div className="font-mono font-extrabold text-xl text-rose-400">
+            {formatCurrency(totalExpensesOverall)}
+          </div>
+          <p className="text-[10px] text-slate-500">Rent, utilities, wages & marketing</p>
+        </div>
+
+        <div className="bg-slate-900 border-2 border-emerald-500/30 rounded-2xl p-5 space-y-2 shadow-lg shadow-emerald-950/5 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full -mr-4 -mt-4 pointer-events-none" />
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span className="font-bold text-emerald-400">Net Profit</span>
+            <TrendingUp className="w-4 h-4 text-emerald-400 animate-pulse" />
+          </div>
+          <div className="font-mono font-extrabold text-xl text-emerald-300">
+            {formatCurrency(netProfitOverall)}
+            <span className="text-xs font-normal text-slate-400 ml-1.5">
+              ({totalRevenue > 0 ? ((netProfitOverall / totalRevenue) * 100).toFixed(1) : '0.0'}%)
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400">Gross profit minus operational expenses</p>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-lg">
+          <div className="flex justify-between items-center text-xs text-slate-400">
             <span>Completed Orders</span>
             <ShoppingBag className="w-4 h-4 text-purple-400" />
           </div>
@@ -1114,11 +1235,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-lg">
           <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>Remaining Stock Inventory</span>
+            <span>Remaining Inventory</span>
             <Boxes className="w-4 h-4 text-blue-400" />
           </div>
           <div className="font-mono font-extrabold text-xl text-slate-100">
-            {totalRemainingStock} <span className="text-xs font-normal text-slate-400">Garments</span>
+            {totalRemainingStock} <span className="text-xs font-normal text-slate-400">Pcs</span>
           </div>
           <p className="text-[10px] text-slate-500">Available across all storage locations</p>
         </div>
@@ -1542,6 +1663,310 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
       </div>
       </div>
+      )}
+
+      {/* OPERATIONAL EXPENSES REPORT VIEW */}
+      {activeReportTab === 'expenses' && (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h3 className="font-extrabold text-lg text-slate-100 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-rose-400" />
+                <span>Operational Expense Tracking & Net Profit Report</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Record and manage daily operational expenses to evaluate true POS profitability and net income.
+              </p>
+            </div>
+            {/* Store & Date indicators */}
+            <div className="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+              Active Filter: <span className="text-amber-400 font-bold">{reportStoreFilter === 'all' ? 'All Stores' : (stores.find(s => s.id === reportStoreFilter)?.name || 'Store')}</span> | <span className="text-emerald-400 font-bold">{selectedReportDate === 'all' ? 'All Time' : selectedReportDate}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left Column: Financial Statement & Expense Log Form (7 Cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* Interactive Profit & Loss (P&L) Net Profit Report */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    Interactive Net Profit Report (P&L)
+                  </h4>
+                  <span className="text-[10px] text-slate-500 font-mono">Dynamic based on filters</span>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Revenue Row */}
+                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg hover:bg-slate-950 transition-all border border-transparent hover:border-slate-800">
+                    <span className="text-slate-300 font-medium">Total Sales Revenue (+)</span>
+                    <span className="font-mono font-bold text-emerald-400">{formatCurrency(filteredRevenue)}</span>
+                  </div>
+
+                  {/* Wholesale Cost of Goods Sold */}
+                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg hover:bg-slate-950 transition-all border border-transparent hover:border-slate-800">
+                    <span className="text-slate-300 font-medium">Wholesale Cost of Goods (COGS) (-)</span>
+                    <span className="font-mono font-bold text-slate-400">({formatCurrency(filteredCost)})</span>
+                  </div>
+
+                  {/* Gross Profit Row */}
+                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                    <span className="text-slate-100 font-bold">Gross Margin (=)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 font-mono">({filteredRevenue > 0 ? ((filteredGrossProfit / filteredRevenue) * 100).toFixed(1) : '0.0'}%)</span>
+                      <span className="font-mono font-bold text-amber-400">{formatCurrency(filteredGrossProfit)}</span>
+                    </div>
+                  </div>
+
+                  {/* Operational Expenses */}
+                  <div className="flex justify-between items-center text-xs p-2.5 rounded-lg hover:bg-slate-950 transition-all border border-transparent hover:border-slate-800">
+                    <span className="text-slate-300 font-medium">Operational Expenses (-)</span>
+                    <span className="font-mono font-bold text-rose-400">({formatCurrency(totalExpensesFiltered)})</span>
+                  </div>
+
+                  {/* Net Profit Row */}
+                  <div className={`flex justify-between items-center text-sm p-3 rounded-xl border ${
+                    filteredNetProfit >= 0
+                      ? 'bg-emerald-500/10 border-emerald-500/30'
+                      : 'bg-rose-500/10 border-rose-500/30'
+                  }`}>
+                    <span className={`font-extrabold ${filteredNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      Net Profit (=)
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({filteredRevenue > 0 ? ((filteredNetProfit / filteredRevenue) * 100).toFixed(1) : '0.0'}%)
+                      </span>
+                      <span className={`font-mono font-extrabold text-base ${filteredNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {formatCurrency(filteredNetProfit)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 bg-slate-950 p-2.5 rounded-xl border border-slate-800/60 leading-relaxed">
+                  💡 **Net Profit** evaluates the real bottom-line performance of your kenyan boutique by accounting for initial supplier COGS as well as daily fixed/variable overhead expenses (rent, utilities, wages).
+                </div>
+              </div>
+
+              {/* Record Operational Expense Form */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4 text-rose-400" />
+                    Record Daily Operational Expense
+                  </h4>
+                </div>
+
+                <form onSubmit={handleAddExpenseSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Amount */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Amount (Ksh)</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="e.g. 15000"
+                        value={expAmount}
+                        onChange={(e) => setExpAmount(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-mono"
+                      />
+                    </div>
+
+                    {/* Date */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={expDate}
+                        onChange={(e) => setExpDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Category */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category</label>
+                      <select
+                        value={expCategory}
+                        onChange={(e) => setExpCategory(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500"
+                      >
+                        <option value="Rent">Rent</option>
+                        <option value="Utility Bills">Utility Bills</option>
+                        <option value="Staff Wages">Staff Wages</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Inventory Logistics">Inventory Logistics</option>
+                        <option value="Other">Other Operational Cost</option>
+                      </select>
+                    </div>
+
+                    {/* Store Location */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Store Location</label>
+                      <select
+                        value={expStoreId}
+                        onChange={(e) => setExpStoreId(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500"
+                      >
+                        <option value="all">Global (All Stores)</option>
+                        {stores.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Description</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Electricity token recharge or Staff lunch wages"
+                      value={expDescription}
+                      onChange={(e) => setExpDescription(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-rose-500 to-amber-500 text-slate-950 font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-md hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-slate-950" />
+                    <span>Record Expense Entry</span>
+                  </button>
+                </form>
+              </div>
+
+            </div>
+
+            {/* Right Column: Expense Entries Log & Categorized Breakdowns (5 Cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Category-wise Breakdown Cards */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-amber-400" />
+                    Expense Category Breakdown
+                  </h4>
+                  <span className="text-[10px] text-slate-500 font-mono">Filtered</span>
+                </div>
+
+                <div className="space-y-3">
+                  {['Rent', 'Utility Bills', 'Staff Wages', 'Marketing', 'Inventory Logistics', 'Other'].map((cat) => {
+                    const totalCat = filteredExpenses.filter((e) => e.category === cat).reduce((sum, e) => sum + e.amount, 0);
+                    const percentage = totalExpensesFiltered > 0 ? (totalCat / totalExpensesFiltered) * 100 : 0;
+                    if (totalCat === 0) return null;
+
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex justify-between text-xs text-slate-300">
+                          <span>{cat}</span>
+                          <span className="font-mono font-bold text-slate-400">
+                            {formatCurrency(totalCat)} ({percentage.toFixed(0)}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-rose-500 transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {totalExpensesFiltered === 0 && (
+                    <p className="text-xs text-slate-500 text-center py-4">No logged expenses match current filters.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Expense Log Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-rose-400" />
+                    Expense Ledger ({filteredExpensesList.length})
+                  </h4>
+                  {/* Category filter */}
+                  <select
+                    value={expCategoryFilter}
+                    onChange={(e) => setExpCategoryFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 text-slate-300 text-[10px] font-bold px-2 py-1 rounded outline-none focus:border-rose-500"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Utility Bills">Utility Bills</option>
+                    <option value="Staff Wages">Staff Wages</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Inventory Logistics">Inventory Logistics</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="max-h-[350px] overflow-y-auto space-y-3 pr-1">
+                  {filteredExpensesList.map((e) => {
+                    const storeObj = stores.find((s) => s.id === e.storeId);
+                    const storeName = e.storeId === 'all' ? 'All Stores' : (storeObj?.name || 'Main Boutique');
+                    
+                    return (
+                      <div key={e.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 hover:border-slate-700 transition-all space-y-2 relative group">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
+                              {e.category}
+                            </span>
+                            <h5 className="font-bold text-xs text-slate-200 mt-1.5">{e.description}</h5>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleDeleteExpense(e.id)}
+                            className={`p-1.5 rounded-lg transition-all text-xs cursor-pointer ${
+                              confirmDeleteId === e.id
+                                ? 'bg-red-500 text-slate-950 font-extrabold px-2 py-0.5 text-[9px] rounded-md'
+                                : 'text-slate-500 hover:text-rose-400 hover:bg-slate-900'
+                            }`}
+                          >
+                            {confirmDeleteId === e.id ? 'Confirm?' : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
+                          <div>
+                            <div>📅 {e.date}</div>
+                            <div>🏬 {storeName}</div>
+                          </div>
+                          <span className="font-extrabold text-xs text-rose-400 font-mono">
+                            {formatCurrency(e.amount)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {filteredExpensesList.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-slate-500">No expense records found matching these criteria.</p>
+                      <p className="text-[10px] text-slate-600 mt-1">Use the entry form to log operational overhead costs.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* Thermal Receipt Modal */}
