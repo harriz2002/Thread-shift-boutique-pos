@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Settings,
   Building2,
@@ -24,6 +25,10 @@ import {
   Image as ImageIcon,
   Trash2,
   Check,
+  ShoppingBag,
+  Bell,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { SystemSettings, StoreLocation, MasterProduct, UserAccount } from '../types';
 
@@ -56,6 +61,9 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'receipt' | 'inventory' | 'stores' | 'backup'>('profile');
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [applyThresholdMsg, setApplyThresholdMsg] = useState<string | null>(null);
+  const [lastBackupDate, setLastBackupDate] = useState<string | null>(() => {
+    return localStorage.getItem('ts_last_backup_date');
+  });
 
   React.useEffect(() => {
     setFormData({ ...settings });
@@ -145,7 +153,7 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
         tagline: 'Flagship Boutique (Downtown)',
         address: '450 Fashion Avenue, Suite 101, City Center',
         phone: '+254 700 123 456',
-        currencySymbol: 'KES',
+        currencySymbol: 'Ksh',
         currencyCode: 'KES',
         defaultTaxRate: 16,
         receiptHeader: 'Threads & Style',
@@ -178,18 +186,26 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
   };
 
   const handleExportBackup = () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+      app: 'Threads & Style POS',
       systemSettings: formData,
+      storesCount: stores.length,
       stores,
+      productsCount: products.length,
       products,
       exportedAt: new Date().toISOString(),
+      backupDate: todayStr,
     }, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `ts_pos_backup_${new Date().toISOString().slice(0,10)}.json`);
+    downloadAnchor.setAttribute("download", `ts_pos_backup_${todayStr}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+
+    localStorage.setItem('ts_last_backup_date', todayStr);
+    setLastBackupDate(todayStr);
   };
 
   return (
@@ -603,18 +619,22 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
             </div>
 
             <div className="bg-white text-slate-950 font-mono text-xs p-5 rounded-xl shadow-inner border border-slate-300 space-y-3 select-none">
-              <div className={`pb-3 border-b border-dashed border-slate-400 ${formData.logoUrl ? 'flex items-center gap-3 text-left' : 'text-center space-y-1'}`}>
-                {formData.logoUrl && (
-                  <div className="shrink-0 flex items-center justify-center">
+              <div className="pb-3 border-b border-dashed border-slate-400 flex items-start justify-between gap-2">
+                <div className="shrink-0 flex items-start pt-0.5">
+                  {formData.logoUrl ? (
                     <img
                       src={formData.logoUrl}
                       alt="Shop Logo"
-                      className="max-h-8 max-w-[65px] object-contain filter grayscale contrast-200"
+                      className="max-h-14 max-w-[90px] object-contain filter grayscale contrast-200"
                       referrerPolicy="no-referrer"
                     />
-                  </div>
-                )}
-                <div className={formData.logoUrl ? 'space-y-0.5 min-w-0 flex-1' : 'space-y-1'}>
+                  ) : (
+                    <div className="w-10 h-10 bg-slate-950 text-amber-400 rounded-lg flex items-center justify-center p-1.5 border border-slate-800">
+                      <ShoppingBag className="w-5 h-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-right space-y-0.5 min-w-0 flex-1">
                   <h4 className="text-sm font-extrabold uppercase tracking-wider text-slate-950 leading-tight">
                     {formData.receiptHeader || formData.businessName || 'THREADS & STYLE'}
                   </h4>
@@ -653,10 +673,6 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
               </div>
 
               <div className="space-y-1 text-[10px]">
-                <div className="flex justify-between text-slate-700">
-                  <span>VAT ({formData.defaultTaxRate}%):</span>
-                  <span>{formData.currencySymbol} 3,131</span>
-                </div>
                 <div className="flex justify-between font-extrabold text-xs text-slate-950 pt-1 border-t border-slate-300">
                   <span>TOTAL PAID:</span>
                   <span>{formData.currencySymbol} 22,700</span>
@@ -664,11 +680,15 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
               </div>
 
               {formData.showReceiptBarcode && (
-                <div className="text-center pt-2 border-t border-dashed border-slate-400 space-y-1">
-                  <div className="flex justify-center">
-                    <div className="h-8 w-40 bg-slate-900 flex items-center justify-center rounded">
-                      <span className="font-mono text-white text-[9px] tracking-widest font-bold">|||| ||| ||||| ||</span>
-                    </div>
+                <div className="pt-2 border-t border-dashed border-slate-400 flex flex-col items-center justify-center text-center">
+                  <div className="p-2 bg-white rounded-xl border-2 border-slate-900 shadow-md flex flex-col items-center">
+                    <QRCodeSVG
+                      value={`Receipt Preview - ${formData.businessName}`}
+                      size={140}
+                      level="Q"
+                      includeMargin={true}
+                    />
+                    <span className="text-[9px] font-black text-slate-900 uppercase mt-1">SCAN TO VERIFY</span>
                   </div>
                 </div>
               )}
@@ -859,12 +879,50 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
                 <button
                   type="button"
                   onClick={onOpenDatabaseModal}
-                  className="py-2 px-3.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-2"
+                  className="py-2 px-3.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Database className="w-3.5 h-3.5 text-amber-400" />
                   <span>View Database Configuration</span>
                 </button>
               )}
+            </div>
+
+            {/* Automated Daily Backup Schedule & Status */}
+            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Bell className="w-4 h-4 text-amber-400" />
+                  Automated Daily Backup Status
+                </span>
+                {lastBackupDate === new Date().toISOString().slice(0, 10) ? (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    Backed Up Today
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Backup Due
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                The system automatically prompts store managers once every calendar day to download a database snapshot and sync inventory records.
+              </p>
+              <div className="text-xs text-slate-300 font-mono bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex justify-between items-center">
+                <span className="text-slate-400">Last Recorded Backup:</span>
+                <span className="font-bold text-amber-300">{lastBackupDate || 'Never Recorded'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('ts_last_backup_dismissed_date');
+                  alert('Automated daily backup notification reset! The notification banner will now appear if backup is due.');
+                }}
+                className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline cursor-pointer inline-block pt-1"
+              >
+                Reset Daily Backup Reminder Banner
+              </button>
             </div>
           </div>
 

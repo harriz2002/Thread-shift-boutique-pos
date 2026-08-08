@@ -402,7 +402,7 @@ export const ReceiptQrScannerModal: React.FC<ReceiptQrScannerModalProps> = ({
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">2. Register ID</span>
-                <p className="font-mono font-bold text-amber-400">{parsedData.registerId || 'REG-POS-01'}</p>
+                <p className="font-mono font-bold text-slate-400">{parsedData.registerId || 'Excluded from QR'}</p>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
@@ -412,7 +412,7 @@ export const ReceiptQrScannerModal: React.FC<ReceiptQrScannerModalProps> = ({
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">4. Sequential Number</span>
-                <p className="font-mono font-bold text-slate-200">#{parsedData.sequentialNumber || '1001'}</p>
+                <p className="font-mono font-bold text-slate-400">{parsedData.sequentialNumber ? `#${parsedData.sequentialNumber}` : 'Excluded from QR'}</p>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
@@ -427,7 +427,7 @@ export const ReceiptQrScannerModal: React.FC<ReceiptQrScannerModalProps> = ({
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">7. Gross Amount</span>
-                <p className="font-mono font-bold text-slate-100">{parsedData.grossAmount || 'N/A'}</p>
+                <p className="font-mono font-bold text-slate-400">{parsedData.grossAmount || 'Excluded from QR'}</p>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
@@ -442,7 +442,7 @@ export const ReceiptQrScannerModal: React.FC<ReceiptQrScannerModalProps> = ({
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">10. Reference Number</span>
-                <p className="font-mono text-slate-300 truncate">{parsedData.referenceNumber || 'N/A'}</p>
+                <p className="font-mono text-slate-400 truncate">{parsedData.referenceNumber || 'Excluded from QR'}</p>
               </div>
 
               <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 space-y-1 md:col-span-2">

@@ -942,7 +942,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Retail Price (KSh):</label>
+                <label className="text-slate-300 font-semibold block mb-1">Retail Price (Ksh):</label>
                 <input
                   type="number"
                   required
@@ -953,7 +953,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Cost Price (KSh):</label>
+                <label className="text-slate-300 font-semibold block mb-1">Cost Price (Ksh):</label>
                 <input
                   type="number"
                   value={newCostPrice}
@@ -1224,7 +1224,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Price (KSh):</label>
+                  <label className="text-slate-300 font-semibold block mb-1">Price (Ksh):</label>
                   <input
                     type="number"
                     value={editingProduct.basePrice}
@@ -1234,7 +1234,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Cost (KSh):</label>
+                  <label className="text-slate-300 font-semibold block mb-1">Cost (Ksh):</label>
                   <input
                     type="number"
                     value={editingProduct.costPrice}

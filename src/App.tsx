@@ -55,6 +55,7 @@ import { AuthModal } from './components/AuthModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
 import { SystemSettingsManager } from './components/SystemSettingsManager';
 import { ReceiptQrScannerModal } from './components/ReceiptQrScannerModal';
+import { DailyBackupNotificationBanner } from './components/DailyBackupNotificationBanner';
 import { useGlobalBarcodeScanner } from './hooks/useBarcodeScanner';
 
 // Helper to normalize safety threshold level to 1 for all product variants
@@ -837,12 +838,17 @@ export default function App() {
   const activeStoreObj = stores.find((s) => s.id === activeStoreId);
 
 
-  // Security: Auto-redirect employees away from restricted tabs
+  // Security & Role Restrictions: Auto-redirect employees from restricted tabs and lock active store to assigned store
   useEffect(() => {
-    if (currentUser?.role === 'employee' && (activeTab === 'inventory' || activeTab === 'analytics')) {
-      setActiveTab('pos');
+    if (currentUser?.role === 'employee') {
+      if (activeTab === 'inventory' || activeTab === 'settings') {
+        setActiveTab('pos');
+      }
+      if (currentUser.assignedStoreId && activeStoreId !== currentUser.assignedStoreId) {
+        setActiveStoreId(currentUser.assignedStoreId);
+      }
     }
-  }, [currentUser, activeTab]);
+  }, [currentUser, activeTab, activeStoreId]);
 
   return (
     <div
@@ -902,6 +908,18 @@ export default function App() {
           setActiveTab={setActiveTab}
         />
 
+        {/* Daily Backup Notification Banner */}
+        <DailyBackupNotificationBanner
+          systemSettings={systemSettings}
+          stores={stores}
+          products={products}
+          transactions={transactions}
+          layaways={layaways}
+          currentUser={currentUser}
+          onOpenSettingsBackup={() => setActiveTab('settings')}
+          onSyncDatabase={handleForceSyncToCloudSql}
+        />
+
         {/* Main Content Area */}
         <main className="flex-1 pb-16 overflow-y-auto">
         {activeTab === 'pos' && (
@@ -910,6 +928,10 @@ export default function App() {
             cart={cart}
             stores={stores}
             activeStoreId={activeStoreId}
+            transactions={transactions}
+            currentUser={currentUser}
+            systemSettings={systemSettings}
+            onViewReceipt={(tx) => setActiveReceiptTx(tx)}
             onAddToCart={handleAddToCart}
             onUpdateCartItemQty={handleUpdateCartItemQty}
             onUpdateCartItemPrice={handleUpdateCartItemPrice}
@@ -976,6 +998,8 @@ export default function App() {
             transactions={transactions}
             products={products}
             stores={stores}
+            currentUser={currentUser}
+            systemSettings={systemSettings}
           />
         )}
 

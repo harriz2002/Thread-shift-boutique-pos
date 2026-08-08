@@ -157,15 +157,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
         )}
 
-        {/* System Settings Quick Button */}
-        <button
-          onClick={() => setActiveTab('settings')}
-          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition-all shadow-sm whitespace-nowrap cursor-pointer"
-          title="System Settings & Preferences"
-        >
-          <Settings className="w-4 h-4 text-amber-400" />
-          <span className="hidden lg:inline">Settings</span>
-        </button>
+        {/* System Settings Quick Button (Admin Only) */}
+        {currentUser?.role === 'admin' && (
+          <button
+            onClick={() => setActiveTab('settings')}
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition-all shadow-sm whitespace-nowrap cursor-pointer"
+            title="System Settings & Preferences"
+          >
+            <Settings className="w-4 h-4 text-amber-400" />
+            <span className="hidden lg:inline">Settings</span>
+          </button>
+        )}
 
         {/* Platform User Role Badge / Sign In Button */}
         {onOpenAuthModal && (

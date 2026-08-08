@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, CheckCircle2, ShoppingBag, Phone, MapPin, QrCode, ShieldCheck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { SaleTransaction, StoreLocation, SystemSettings } from '../types';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, maskPhoneNumber } from '../utils/format';
 import { ReceiptQrScannerModal } from './ReceiptQrScannerModal';
 
 interface ReceiptModalProps {
@@ -66,23 +66,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const qrDataText = [
     `=== OFFICIAL RECEIPT VERIFICATION ===`,
     `Boutique / Store: ${storeName}`,
-    `Register ID: ${registerId}`,
     `Receipt Number: ${receiptNumber}`,
-    `Sequential Number: ${sequentialNumber}`,
     `Date & Time: ${dateTime}`,
     `Cashier Name: ${cashierName}`,
     ``,
     `--- ITEMS PURCHASED ---`,
     itemSummaryList,
     ``,
-    `Gross Amount: ${grossAmount}`,
     `Total Amount: ${totalAmount}`,
-    `Payment Method: ${paymentMethods}`,
-    `Tx / Ref Number: ${referenceNumber}`,
-    ``,
-    `--- SCE SECURITY SIGNATURE ---`,
-    `Signature Value: ${signatureValue}`,
-    `Chaining Value: ${chainingValue}`
+    `Payment Method: ${paymentMethods}`
   ].join('\n');
 
   const handlePrint = () => {
@@ -105,8 +97,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <head>
                 <title>Receipt - ${receiptNumber}</title>
                 <style>
-                  body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; padding: 20px; margin: 0; background: #ffffff; color: #000000; }
-                  .printable-receipt { width: 100%; max-width: 80mm; margin: 0 auto; }
+                  @page { size: 80mm auto; margin: 0; }
+                  body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; padding: 0; margin: 0; background: #ffffff; color: #000000; width: 80mm; }
+                  .printable-receipt { width: 80mm; max-width: 80mm; margin: 0 auto; box-sizing: border-box; padding: 4mm 2mm; }
                   .text-center { text-align: center; }
                   .flex { display: flex; }
                   .justify-between { justify-content: space-between; }
@@ -181,42 +174,31 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         <div className="p-6">
           <div className="bg-white text-slate-950 font-mono text-xs p-6 rounded-xl shadow-lg border border-slate-200 printable-receipt space-y-4">
             
-            {/* Store Header + Top Right QR Code */}
-            <div className="flex justify-between items-start gap-3 pb-3 border-b border-dashed border-slate-300">
-              <div className="space-y-0.5 min-w-0 flex-1">
-                {systemSettings?.logoUrl && (
+            {/* Store Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-dashed border-slate-300 gap-2">
+              <div className="shrink-0 flex items-start pt-0.5">
+                {systemSettings?.logoUrl ? (
                   <img
                     src={systemSettings.logoUrl}
                     alt="Shop Logo"
-                    className="max-h-8 max-w-[65px] object-contain filter grayscale contrast-200 mb-1"
+                    className="max-h-16 max-w-[90px] object-contain filter grayscale contrast-200"
                     referrerPolicy="no-referrer"
                   />
+                ) : (
+                  <div className="w-12 h-12 bg-slate-950 text-amber-400 rounded-lg flex items-center justify-center p-2 shadow-sm border border-slate-800">
+                    <ShoppingBag className="w-6 h-6" />
+                  </div>
                 )}
+              </div>
+              <div className="text-right space-y-0.5 min-w-0 flex-1">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 leading-tight">
                   {systemSettings?.receiptHeader || systemSettings?.businessName || 'Threads & Style'}
                 </h2>
-                <p className="text-[11px] font-sans text-slate-700 font-bold leading-tight">
+                <p className="text-[11px] font-sans text-slate-700 font-bold leading-tight mt-0.5">
                   {storeName}
                 </p>
                 <p className="text-[10px] text-slate-500 leading-tight">{store?.address || systemSettings?.address}</p>
                 <p className="text-[10px] text-slate-500 leading-tight">TEL: {store?.phone || systemSettings?.phone}</p>
-              </div>
-
-              {/* Top Right QR Scan Code */}
-              <div 
-                className="shrink-0 flex flex-col items-center bg-slate-50 p-1.5 rounded-lg border border-slate-200 text-center cursor-pointer hover:bg-slate-100 hover:scale-105 transition-all shadow-sm group"
-                onClick={() => setIsQrScannerOpen(true)}
-                title="Click to open Receipt QR Scanner & Verifier"
-              >
-                <QRCodeSVG
-                  value={qrDataText}
-                  size={76}
-                  level="M"
-                  includeMargin={false}
-                />
-                <span className="text-[8px] font-bold tracking-tight text-slate-700 group-hover:text-emerald-700 mt-1 uppercase flex items-center gap-0.5">
-                  <ShieldCheck className="w-2.5 h-2.5 text-emerald-600 inline" /> Click to Verify
-                </span>
               </div>
             </div>
 
@@ -225,10 +207,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <div className="flex justify-between">
                 <span>Receipt No:</span>
                 <strong className="text-slate-950">{receiptNumber}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>Register ID / Seq:</span>
-                <span className="font-mono text-slate-900 font-semibold">{registerId} (#{sequentialNumber})</span>
               </div>
               <div className="flex justify-between">
                 <span>Date & Time:</span>
@@ -241,7 +219,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               {transaction.customerName && (
                 <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                   <span>Customer:</span>
-                  <strong className="text-slate-900">{transaction.customerName}</strong>
+                  <strong className="text-slate-900">
+                    {/\d{6,}/.test(transaction.customerName)
+                      ? maskPhoneNumber(transaction.customerName)
+                      : transaction.customerName}
+                  </strong>
                 </div>
               )}
             </div>
@@ -272,22 +254,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
             {/* Calculations */}
             <div className="space-y-1.5 text-[11px] text-slate-700 pt-1">
-              <div className="flex justify-between">
-                <span>Gross Amount / Subtotal:</span>
-                <span>{grossAmount}</span>
-              </div>
-              {transaction.discount > 0 && (
-                <div className="flex justify-between text-rose-600">
-                  <span>Discount Off:</span>
-                  <span>-{formatCurrency(transaction.discount)}</span>
-                </div>
-              )}
-              {transaction.tax > 0 && (
-                <div className="flex justify-between">
-                  <span>VAT Tax:</span>
-                  <span>{formatCurrency(transaction.tax)}</span>
-                </div>
-              )}
               <div className="flex justify-between font-extrabold text-sm text-slate-950 pt-1 border-t border-slate-300">
                 <span>TOTAL PAID:</span>
                 <span>{totalAmount}</span>
@@ -323,28 +289,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <div key={idx} className="flex justify-between">
                   <span className="capitalize">
                     {p.method === 'mpesa' ? '📱 M-Pesa / Mobile Cash' : p.method === 'card' ? '💳 Credit Card' : '💵 Cash'}
-                    {p.phoneNumber ? ` (${p.phoneNumber})` : ''}:
+                    {p.phoneNumber ? ` (${maskPhoneNumber(p.phoneNumber)})` : ''}:
                   </span>
                   <span className="font-mono font-bold text-slate-900">{formatCurrency(p.amount)}</span>
                 </div>
               ))}
-              {referenceNumber && (
-                <div className="text-[9px] text-slate-500 font-mono mt-1 truncate">
-                  REF NO: {referenceNumber}
-                </div>
-              )}
-            </div>
-
-            {/* Digital Security Signature (SCE) */}
-            <div className="pt-2 border-t border-dashed border-slate-300 text-[9px] text-slate-500 space-y-0.5">
-              <div className="flex justify-between font-mono">
-                <span>SCE SIG:</span>
-                <span className="font-bold text-slate-700 truncate max-w-[190px]">{signatureValue}</span>
-              </div>
-              <div className="flex justify-between font-mono">
-                <span>CHAIN HASH:</span>
-                <span className="font-bold text-slate-700 truncate max-w-[190px]">{chainingValue}</span>
-              </div>
             </div>
 
             {/* Loyalty points info */}
@@ -354,17 +303,35 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               </div>
             )}
 
-            {/* Simulated Barcode & Footer Messages */}
-            <div className="text-center pt-2 border-t border-dashed border-slate-300 space-y-1">
-              {(systemSettings?.showReceiptBarcode ?? true) && (
-                <div className="flex justify-center">
-                  <div className="h-10 w-48 bg-slate-900 flex items-center justify-center rounded px-2">
-                    <span className="font-mono text-white tracking-[0.3em] text-[10px] font-bold">
-                      |||| ||| ||||| || |||
-                    </span>
-                  </div>
+            {/* Highly Visible QR Code for Camera Scanning & Official Verification */}
+            <div className="pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+              <div 
+                className="inline-flex flex-col items-center bg-white p-3.5 rounded-2xl border-2 border-slate-900 shadow-md cursor-pointer hover:bg-slate-50 transition-all group max-w-full"
+                onClick={() => setIsQrScannerOpen(true)}
+                title="Click to open Receipt QR Scanner & Verifier Tool"
+              >
+                <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
+                  <QRCodeSVG
+                    value={qrDataText}
+                    size={175}
+                    level="Q"
+                    includeMargin={true}
+                    fgColor="#000000"
+                    bgColor="#FFFFFF"
+                  />
                 </div>
-              )}
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900 group-hover:text-emerald-700">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 inline shrink-0" />
+                  <span>SCAN TO VERIFY RECEIPT</span>
+                </div>
+                <span className="text-[8.5px] text-slate-500 font-mono mt-0.5">
+                  Click QR code to test camera scanner
+                </span>
+              </div>
+            </div>
+
+            {/* Footer Messages */}
+            <div className="text-center pt-2 border-t border-dashed border-slate-300 space-y-1">
               <p className="text-[9px] text-slate-500">
                 {systemSettings?.receiptFooterMessage || 'Thank you for shopping at Threads & Style!'}
               </p>

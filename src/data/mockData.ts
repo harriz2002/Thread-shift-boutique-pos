@@ -7,7 +7,7 @@ export const INITIAL_SYSTEM_SETTINGS: SystemSettings = {
   address: '450 Fashion Avenue, Suite 101, City Center',
   phone: '+254 700 123 456',
   logoUrl: '',
-  currencySymbol: 'KES',
+  currencySymbol: 'Ksh',
   currencyCode: 'KES',
   defaultTaxRate: 16,
   receiptHeader: 'Threads & Style',

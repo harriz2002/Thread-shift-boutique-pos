@@ -26,7 +26,7 @@ import {
   Filter,
   FileSpreadsheet
 } from 'lucide-react';
-import { SaleTransaction, MasterProduct, StoreLocation, ProductVariant } from '../types';
+import { SaleTransaction, MasterProduct, StoreLocation, ProductVariant, UserAccount, SystemSettings } from '../types';
 import { formatCurrency } from '../utils/format';
 import { ReceiptModal } from './ReceiptModal';
 
@@ -34,18 +34,46 @@ interface SalesAnalyticsProps {
   transactions: SaleTransaction[];
   products: MasterProduct[];
   stores: StoreLocation[];
+  currentUser?: UserAccount | null;
+  systemSettings?: SystemSettings;
 }
 
 export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   transactions,
   products,
   stores,
+  currentUser,
+  systemSettings,
 }) => {
-  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report'>('overview');
+  const isEmployee = currentUser?.role === 'employee';
+  const employeeStoreId = currentUser?.assignedStoreId || stores[0]?.id || 'store-1';
+  const employeeStoreObj = stores.find((s) => s.id === employeeStoreId) || stores[0];
+
+  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report'>(
+    isEmployee ? 'daily_sales' : 'overview'
+  );
+
+  const [reportStoreFilter, setReportStoreFilter] = useState<string>(() => {
+    if (currentUser?.role === 'employee') {
+      return currentUser.assignedStoreId || stores[0]?.id || 'store-1';
+    }
+    return 'all';
+  });
+
+  React.useEffect(() => {
+    if (currentUser?.role === 'employee') {
+      if (activeReportTab !== 'daily_sales') {
+        setActiveReportTab('daily_sales');
+      }
+      if (reportStoreFilter !== employeeStoreId) {
+        setReportStoreFilter(employeeStoreId);
+      }
+    }
+  }, [currentUser, activeReportTab, reportStoreFilter, employeeStoreId]);
+
   const [selectedReportDate, setSelectedReportDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
-  const [reportStoreFilter, setReportStoreFilter] = useState<string>('all');
   const [reportCategoryFilter, setReportCategoryFilter] = useState<string>('all');
   const [selectedReceiptTx, setSelectedReceiptTx] = useState<SaleTransaction | null>(null);
 
@@ -59,12 +87,13 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   // Compute Daily Sales Report Data
+  const targetStoreFilter = isEmployee ? employeeStoreId : reportStoreFilter;
   const filteredDailyTransactions = (transactions || []).filter((tx) => {
     if (!tx) return false;
     const rawDate = tx.date || (tx as any).timestamp || '';
     const txDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : '';
     const matchesDate = !selectedReportDate || selectedReportDate === 'all' || txDate === selectedReportDate;
-    const matchesStore = reportStoreFilter === 'all' || tx.storeId === reportStoreFilter;
+    const matchesStore = targetStoreFilter === 'all' || tx.storeId === targetStoreFilter;
     return matchesDate && matchesStore;
   });
 
@@ -85,7 +114,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
   // Export Daily Sales Report as CSV
   const exportDailySalesReportCSV = () => {
-    const headers = ['Transaction ID', 'Receipt #', 'Date & Time', 'Store Location', 'Customer', 'Items Count', 'Payment Method', 'Total Amount (KSh)'];
+    const headers = ['Transaction ID', 'Receipt #', 'Date & Time', 'Store Location', 'Customer', 'Items Count', 'Payment Method', 'Total Amount (Ksh)'];
     const rows = filteredDailyTransactions.map((tx) => {
       const rawDate = tx.date || (tx as any).timestamp;
       const storeObj = (stores || []).find((s) => s.id === tx.storeId);
@@ -147,7 +176,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
               <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${tx.customerName || 'Walk-in Customer'}</td>
               <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${itemsStr}</td>
               <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${payStr}</td>
-              <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace;">KSh ${(tx.total || 0).toLocaleString()}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace;">Ksh ${(tx.total || 0).toLocaleString()}</td>
             </tr>
           `;
         })
@@ -189,7 +218,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
               <div class="kpi-grid">
                 <div class="kpi-box">
                   <div class="kpi-label">Total Daily Revenue</div>
-                  <div class="kpi-val">KSh ${dailyRevenue.toLocaleString()}</div>
+                  <div class="kpi-val">Ksh ${dailyRevenue.toLocaleString()}</div>
                 </div>
                 <div class="kpi-box">
                   <div class="kpi-label">Completed Orders</div>
@@ -197,11 +226,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
                 </div>
                 <div class="kpi-box">
                   <div class="kpi-label">M-Pesa Collections</div>
-                  <div class="kpi-val">KSh ${(dailyPayments.mpesa || 0).toLocaleString()}</div>
+                  <div class="kpi-val">Ksh ${(dailyPayments.mpesa || 0).toLocaleString()}</div>
                 </div>
                 <div class="kpi-box">
                   <div class="kpi-label">Cash Collections</div>
-                  <div class="kpi-val">KSh ${(dailyPayments.cash || 0).toLocaleString()}</div>
+                  <div class="kpi-val">Ksh ${(dailyPayments.cash || 0).toLocaleString()}</div>
                 </div>
               </div>
 
@@ -290,11 +319,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
       'Size',
       'SKU',
       'Barcode',
-      'Unit Cost (KSh)',
-      'Retail Price (KSh)',
+      'Unit Cost (Ksh)',
+      'Retail Price (Ksh)',
       'Store Location',
       'Stock Quantity',
-      'Stock Value (KSh)',
+      'Stock Value (Ksh)',
     ];
     const rows = filteredInventoryRows.map((item) => [
       item.product?.styleNumber || '-',
@@ -562,26 +591,30 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         <div>
           <h2 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-amber-400" />
-            <span>Reports, Analytics & AI Intelligence</span>
+            <span>{isEmployee ? 'Daily Sales Register & Reports' : 'Reports, Analytics & AI Intelligence'}</span>
           </h2>
           <p className="text-xs text-slate-400">
-            Export daily sales reports, analyze garment stock valuation, and unlock smart insights
+            {isEmployee
+              ? 'View daily transaction registers, filter by store & date, and export CSV or PDF reports'
+              : 'Export daily sales reports, analyze garment stock valuation, and unlock smart insights'}
           </p>
         </div>
 
         {/* Sub Navigation Tabs */}
         <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-          <button
-            onClick={() => setActiveReportTab('overview')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeReportTab === 'overview'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Overview & AI</span>
-          </button>
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveReportTab('overview')}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeReportTab === 'overview'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Overview & AI</span>
+            </button>
+          )}
 
           <button
             onClick={() => setActiveReportTab('daily_sales')}
@@ -595,17 +628,19 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             <span>Daily Sales Report</span>
           </button>
 
-          <button
-            onClick={() => setActiveReportTab('inventory_report')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeReportTab === 'inventory_report'
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-            }`}
-          >
-            <Boxes className="w-3.5 h-3.5" />
-            <span>Inventory Stock Report</span>
-          </button>
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveReportTab('inventory_report')}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeReportTab === 'inventory_report'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <Boxes className="w-3.5 h-3.5" />
+              <span>Inventory Stock Report</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -654,18 +689,24 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
               <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
                 <Store className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-slate-300">Store:</span>
-                <select
-                  value={reportStoreFilter}
-                  onChange={(e) => setReportStoreFilter(e.target.value)}
-                  className="bg-slate-900 text-slate-100 text-xs font-bold px-2 py-1 rounded border border-slate-700 outline-none focus:border-amber-500 cursor-pointer"
-                >
-                  <option value="all">All Store Locations</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                {isEmployee ? (
+                  <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                    {employeeStoreObj?.name || 'Assigned Store'}
+                  </span>
+                ) : (
+                  <select
+                    value={reportStoreFilter}
+                    onChange={(e) => setReportStoreFilter(e.target.value)}
+                    className="bg-slate-900 text-slate-100 text-xs font-bold px-2 py-1 rounded border border-slate-700 outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="all">All Store Locations</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -1508,6 +1549,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         <ReceiptModal
           transaction={selectedReceiptTx}
           store={(stores || []).find((s) => s.id === selectedReceiptTx.storeId)}
+          systemSettings={systemSettings}
           onClose={() => setSelectedReceiptTx(null)}
         />
       )}

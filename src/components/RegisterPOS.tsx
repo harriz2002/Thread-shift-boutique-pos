@@ -14,16 +14,32 @@ import {
   Percent, 
   MapPin, 
   Sparkles,
-  Layers
+  Layers,
+  TrendingUp,
+  Receipt,
+  Banknote,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  Printer,
+  Smartphone,
+  PieChart,
+  HelpCircle,
+  Download
 } from 'lucide-react';
-import { MasterProduct, ProductVariant, CartItem, ProductCategory, StoreLocation } from '../types';
+import { MasterProduct, ProductVariant, CartItem, ProductCategory, StoreLocation, SaleTransaction, UserAccount, SystemSettings } from '../types';
 import { formatCurrency } from '../utils/format';
+import { ShiftBreakdownModal } from './ShiftBreakdownModal';
 
 interface RegisterPOSProps {
   products: MasterProduct[];
   cart: CartItem[];
   stores: StoreLocation[];
   activeStoreId: string;
+  transactions?: SaleTransaction[];
+  currentUser?: UserAccount | null;
+  systemSettings?: SystemSettings;
+  onViewReceipt?: (transaction: SaleTransaction) => void;
   onAddToCart: (product: MasterProduct, variant: ProductVariant, quantity: number) => void;
   onUpdateCartItemQty: (cartItemId: string, quantity: number) => void;
   onUpdateCartItemPrice?: (cartItemId: string, newUnitPrice: number) => void;
@@ -42,6 +58,10 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
   cart,
   stores,
   activeStoreId,
+  transactions,
+  currentUser,
+  systemSettings,
+  onViewReceipt,
   onAddToCart,
   onUpdateCartItemQty,
   onUpdateCartItemPrice,
@@ -55,6 +75,9 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const categories: (ProductCategory | 'All')[] = [
     'All',
@@ -67,6 +90,59 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
   ];
 
   const activeStore = stores.find((s) => s.id === activeStoreId);
+
+  // Calculate today's shift metrics for active store
+  const todayDateStr = new Date().toISOString().split('T')[0];
+
+  const storeTodayTransactions = (transactions || []).filter((tx) => {
+    if (tx.storeId && tx.storeId !== activeStoreId) return false;
+    if (!tx.date) return false;
+    try {
+      const txDateStr = new Date(tx.date).toISOString().split('T')[0];
+      return txDateStr === todayDateStr || tx.date.startsWith(todayDateStr);
+    } catch {
+      return false;
+    }
+  });
+
+  const completedTodayTx = storeTodayTransactions.filter((tx) => tx.status !== 'returned');
+  const todaySalesCount = completedTodayTx.length;
+  const shiftTotal = completedTodayTx.reduce((sum, tx) => sum + (tx.total || 0), 0);
+  const avgBasketValue = todaySalesCount > 0 ? shiftTotal / todaySalesCount : 0;
+  const todayReturnsCount = storeTodayTransactions.filter((tx) => tx.status === 'returned').length;
+
+  // Identify most recent transaction for quick receipt reprint
+  const lastTransaction = (transactions || []).find((tx) => !tx.storeId || tx.storeId === activeStoreId) || (transactions || [])[0];
+
+  // Calculate shift payment breakdown for tooltip & modal
+  let shiftCashTotal = 0, shiftCashCount = 0;
+  let shiftMpesaTotal = 0, shiftMpesaCount = 0;
+  let shiftCardTotal = 0, shiftCardCount = 0;
+  let shiftOtherTotal = 0, shiftOtherCount = 0;
+
+  completedTodayTx.forEach((tx) => {
+    if (tx.payments && tx.payments.length > 0) {
+      tx.payments.forEach((p) => {
+        const amt = p.amount || 0;
+        if (p.method === 'cash') {
+          shiftCashTotal += amt;
+          shiftCashCount += 1;
+        } else if (p.method === 'mpesa') {
+          shiftMpesaTotal += amt;
+          shiftMpesaCount += 1;
+        } else if (p.method === 'card') {
+          shiftCardTotal += amt;
+          shiftCardCount += 1;
+        } else {
+          shiftOtherTotal += amt;
+          shiftOtherCount += 1;
+        }
+      });
+    } else {
+      shiftCashTotal += (tx.total || 0);
+      shiftCashCount += 1;
+    }
+  });
 
   // Filter products by category & search query (title, styleNumber, tags, variant SKUs)
   const filteredProducts = products.filter((p) => {
@@ -94,6 +170,198 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
       
       {/* Left Area: Product Search & Apparel Matrix Catalog (8 Cols) */}
       <div className="lg:col-span-7 space-y-4">
+
+        {/* Quick Stats Summary Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-extrabold text-slate-100 uppercase tracking-wider">
+                    Quick Shift Stats
+                  </h3>
+                  <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    ACTIVE SHIFT
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {activeStore?.name || 'Current Terminal'} {currentUser ? `• Cashier: ${currentUser.name}` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 relative">
+              {/* Payment Breakdown Button & Tooltip Trigger */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsBreakdownModalOpen(true)}
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                  className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-700 transition-colors shadow-sm"
+                  title="Hover or click for active shift payment breakdown"
+                >
+                  <PieChart className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="hidden sm:inline">Shift Breakdown</span>
+                </button>
+
+                {/* Floating Hover Tooltip Popover */}
+                {showTooltip && (
+                  <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-slate-950 border border-slate-800 rounded-2xl p-3.5 shadow-2xl text-slate-100 space-y-2.5 animate-in fade-in duration-200 pointer-events-none">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                        <PieChart className="w-3 h-3" /> Shift Payment Breakdown
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400 font-bold">
+                        {todaySalesCount} txns
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs font-mono">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-1 text-[11px] font-sans font-medium text-emerald-400">
+                          <Banknote className="w-3.5 h-3.5" /> Cash
+                        </span>
+                        <span className="font-extrabold text-slate-100">
+                          {formatCurrency(shiftCashTotal)} ({shiftCashCount})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-1 text-[11px] font-sans font-medium text-emerald-300">
+                          <Smartphone className="w-3.5 h-3.5" /> M-Pesa
+                        </span>
+                        <span className="font-extrabold text-slate-100">
+                          {formatCurrency(shiftMpesaTotal)} ({shiftMpesaCount})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="flex items-center gap-1 text-[11px] font-sans font-medium text-blue-400">
+                          <CreditCard className="w-3.5 h-3.5" /> Card
+                        </span>
+                        <span className="font-extrabold text-slate-100">
+                          {formatCurrency(shiftCardTotal)} ({shiftCardCount})
+                        </span>
+                      </div>
+
+                      {shiftOtherTotal > 0 && (
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1 text-[11px] font-sans font-medium text-amber-400">
+                            <Zap className="w-3.5 h-3.5" /> Other
+                          </span>
+                          <span className="font-extrabold text-slate-100">
+                            {formatCurrency(shiftOtherTotal)} ({shiftOtherCount})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-sans text-slate-400">
+                      <span>Full Report, CSV & Print</span>
+                      <span className="text-amber-400 font-bold">Click to Open →</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  if (lastTransaction) {
+                    onViewReceipt?.(lastTransaction);
+                  }
+                }}
+                disabled={!lastTransaction}
+                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800/80 disabled:text-slate-500 disabled:border-slate-800 text-slate-950 font-extrabold text-[11px] px-3 py-1.5 rounded-xl border border-amber-400/30 shadow-sm transition-all active:scale-95 disabled:active:scale-100"
+                title={
+                  lastTransaction 
+                    ? `Reprint Receipt #${lastTransaction.receiptNumber || lastTransaction.id}` 
+                    : "No recent transaction available"
+                }
+              >
+                <Printer className="w-3.5 h-3.5 shrink-0 text-slate-950 group-disabled:text-slate-500" />
+                <span className="hidden sm:inline">Print Last Receipt</span>
+                <span className="sm:hidden">Reprint</span>
+              </button>
+
+              <button
+                onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                className="text-slate-400 hover:text-slate-200 text-[11px] font-medium flex items-center gap-1 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 transition-colors"
+                title={isStatsExpanded ? "Minimize stats view" : "Expand stats view"}
+              >
+                <span>{isStatsExpanded ? 'Minimize' : 'Expand'}</span>
+                {isStatsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {isStatsExpanded && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+              {/* Today's Total Sales Count */}
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                  Today's Sales Count
+                  <Receipt className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                </span>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-lg font-mono font-extrabold text-slate-100">
+                    {todaySalesCount}
+                  </p>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    {todaySalesCount === 1 ? 'order' : 'orders'}
+                  </span>
+                </div>
+                {todayReturnsCount > 0 ? (
+                  <span className="text-[9px] text-rose-400/80 font-mono block">
+                    ({todayReturnsCount} return{todayReturnsCount > 1 ? 's' : ''})
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-slate-500 font-mono block">
+                    Completed today
+                  </span>
+                )}
+              </div>
+
+              {/* Current Shift Total */}
+              <div 
+                onClick={() => setIsBreakdownModalOpen(true)}
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+                className="bg-slate-950 p-3 rounded-xl border border-amber-500/30 hover:border-amber-500/60 bg-gradient-to-br from-amber-500/10 via-slate-950 to-transparent space-y-1 cursor-pointer transition-all group"
+                title="Click to open payment breakdown, export CSV or print shift report"
+              >
+                <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                  Current Shift Total
+                  <Banknote className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                </span>
+                <p className="text-lg font-mono font-extrabold text-amber-300">
+                  {formatCurrency(shiftTotal)}
+                </p>
+                <span className="text-[9px] text-slate-400 font-mono block truncate flex items-center justify-between">
+                  <span>Total revenue earned</span>
+                  <span className="text-amber-400 font-sans font-bold text-[8px] uppercase">View Breakdown →</span>
+                </span>
+              </div>
+
+              {/* Avg Sale Value */}
+              <div className="col-span-2 sm:col-span-1 bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center justify-between">
+                  Avg. Order Value
+                  <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                </span>
+                <p className="text-lg font-mono font-extrabold text-indigo-300">
+                  {formatCurrency(avgBasketValue)}
+                </p>
+                <span className="text-[9px] text-slate-500 font-mono block">
+                  Average per sale
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
         
         {/* Search & Barcode Quick Action */}
         <div className="flex items-center gap-2">
@@ -470,6 +738,16 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
         </div>
 
       </div>
+
+      {/* Shift Payment Breakdown & Export Modal */}
+      <ShiftBreakdownModal
+        isOpen={isBreakdownModalOpen}
+        onClose={() => setIsBreakdownModalOpen(false)}
+        transactions={transactions || []}
+        activeStore={activeStore}
+        currentUser={currentUser}
+        systemSettings={systemSettings}
+      />
 
     </div>
   );

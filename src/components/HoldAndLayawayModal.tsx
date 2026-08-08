@@ -20,7 +20,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { HoldCart, LayawayPlan, CartItem, PaymentMethod, StoreLocation } from '../types';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, maskPhoneNumber } from '../utils/format';
 
 interface HoldAndLayawayModalProps {
   holds: HoldCart[];
@@ -505,7 +505,7 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  Payment Amount (KSh):
+                  Payment Amount (Ksh):
                 </label>
                 <input
                   type="number"
@@ -610,7 +610,7 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span>Phone Number:</span>
-                  <span className="font-mono">{receiptLayaway.customerPhone}</span>
+                  <span className="font-mono">{maskPhoneNumber(receiptLayaway.customerPhone)}</span>
                 </div>
               </div>
 
@@ -670,7 +670,51 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
             </div>
 
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                try {
+                  window.print();
+                } catch (e) {
+                  console.warn('Direct print restricted:', e);
+                }
+                try {
+                  const receiptEl = document.querySelector('.printable-receipt');
+                  if (receiptEl) {
+                    const printWin = window.open('', '_blank', 'width=480,height=700');
+                    if (printWin) {
+                      printWin.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>Receipt - ${receiptLayaway.planNumber}</title>
+                            <style>
+                              @page { size: 80mm auto; margin: 0; }
+                              body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; padding: 0; margin: 0; background: #ffffff; color: #000000; width: 80mm; }
+                              .printable-receipt { width: 80mm; max-width: 80mm; margin: 0 auto; box-sizing: border-box; padding: 4mm 2mm; }
+                              .text-center { text-align: center; }
+                              .flex { display: flex; }
+                              .justify-between { justify-content: space-between; }
+                              .border-b { border-bottom: 1px dashed #000; }
+                              .border-t { border-top: 1px dashed #000; }
+                              .font-bold { font-weight: bold; }
+                              .font-extrabold { font-weight: 800; }
+                              .uppercase { text-transform: uppercase; }
+                            </style>
+                          </head>
+                          <body>
+                            ${receiptEl.outerHTML}
+                            <script>
+                              window.onload = function() { window.focus(); window.print(); };
+                            </script>
+                          </body>
+                        </html>
+                      `);
+                      printWin.document.close();
+                    }
+                  }
+                } catch (err) {
+                  console.error('Fallback print error:', err);
+                }
+              }}
               className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-lg no-print"
             >
               <Printer className="w-4 h-4" />

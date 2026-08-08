@@ -259,7 +259,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                         </div>
 
                         <div className="text-right">
-                          <div className="font-mono font-bold text-amber-400 text-sm">KSh {tx.total.toFixed(2)}</div>
+                          <div className="font-mono font-bold text-amber-400 text-sm">Ksh {tx.total.toFixed(2)}</div>
                           <span className={`text-[10px] font-semibold uppercase ${
                             isReturned ? 'text-rose-400' : 'text-emerald-400'
                           }`}>
@@ -308,7 +308,7 @@ export const ReturnsAndExchangesModal: React.FC<ReturnsAndExchangesModalProps> =
                     <div className="text-right">
                       <span className="text-xs text-slate-400 block">Original Total:</span>
                       <span className="font-mono font-extrabold text-amber-400 text-base">
-                        KSh {selectedTx.total.toFixed(2)}
+                        Ksh {selectedTx.total.toFixed(2)}
                       </span>
                     </div>
                   </div>

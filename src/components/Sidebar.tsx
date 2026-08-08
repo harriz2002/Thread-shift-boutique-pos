@@ -124,7 +124,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Store Switcher */}
-        {isSidebarCollapsed ? (
+        {currentUser?.role === 'employee' ? (
+          isSidebarCollapsed ? (
+            <div
+              className="w-12 h-10 bg-slate-800 text-amber-400 text-xs font-bold rounded-xl border border-slate-700 flex items-center justify-center"
+              title={`Assigned Store: ${activeStore?.name}`}
+            >
+              {activeStore?.name?.substring(0, 2).toUpperCase()}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 bg-slate-800/80 p-3 rounded-xl border border-slate-700 w-full">
+              <div className="flex items-center gap-1.5">
+                <Store className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-medium text-slate-300">Location:</span>
+              </div>
+              <div className="w-full bg-slate-900 text-amber-400 text-xs font-bold rounded-lg px-2.5 py-1.5 border border-slate-700/80 flex items-center justify-between">
+                <span className="truncate">{activeStore?.name || 'Assigned Store'}</span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono shrink-0">
+                  My Store
+                </span>
+              </div>
+            </div>
+          )
+        ) : isSidebarCollapsed ? (
           <div className="w-full flex justify-center">
             <select
               value={activeStoreId}
@@ -290,46 +312,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isSidebarCollapsed && <span>Customers</span>}
           </button>
 
-          {/* Analytics (Admin Only) */}
-          {currentUser?.role === 'admin' && (
-            <button
-              onClick={() => setActiveTab('analytics')}
-              title="Executive Sales & Revenue Analytics"
-              className={`flex items-center transition-all ${
-                isSidebarCollapsed
-                  ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
-                  : 'w-full justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold'
-              } ${
-                activeTab === 'analytics'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <BarChart3 className="w-5 h-5 shrink-0" />
-                {!isSidebarCollapsed && <span>Analytics</span>}
-              </div>
-              {!isSidebarCollapsed && <Sparkles className="w-3.5 h-3.5 text-amber-200" />}
-            </button>
-          )}
-
-          {/* System Settings */}
+          {/* Sales & Analytics / Daily Sales Report */}
           <button
-            onClick={() => setActiveTab('settings')}
-            title="System Settings & Preferences"
+            onClick={() => setActiveTab('analytics')}
+            title={currentUser?.role === 'employee' ? 'Daily Sales Report & Exports' : 'Sales History & Revenue Analytics'}
             className={`flex items-center transition-all ${
               isSidebarCollapsed
                 ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
-                : 'w-full gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-semibold'
+                : 'w-full justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold'
             } ${
-              activeTab === 'settings'
+              activeTab === 'analytics'
                 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
-            <Settings className="w-5 h-5 shrink-0" />
-            {!isSidebarCollapsed && <span>System Settings</span>}
+            <div className="flex items-center gap-2.5">
+              <BarChart3 className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && (
+                <span>{currentUser?.role === 'employee' ? 'Daily Sales Report' : 'Sales & Analytics'}</span>
+              )}
+            </div>
+            {!isSidebarCollapsed && currentUser?.role !== 'employee' && (
+              <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+            )}
           </button>
+
+          {/* System Settings (Admin Only) */}
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              title="System Settings & Preferences"
+              className={`flex items-center transition-all ${
+                isSidebarCollapsed
+                  ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
+                  : 'w-full gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-semibold'
+              } ${
+                activeTab === 'settings'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Settings className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>System Settings</span>}
+            </button>
+          )}
         </nav>
 
         {/* Bottom Toggle Button for Desktop */}

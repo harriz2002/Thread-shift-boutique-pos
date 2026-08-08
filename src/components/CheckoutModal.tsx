@@ -411,7 +411,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   }`}
                 >
                   <Banknote className="w-5 h-5 mb-1 text-blue-400" />
-                  <span className="text-xs">Cash (KSh)</span>
+                  <span className="text-xs">Cash (Ksh)</span>
                   <span className="text-[10px] text-slate-500 font-normal">Auto Change Calc</span>
                 </button>
 
@@ -471,7 +471,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
                   <div className="flex justify-between items-center">
                     <label className="text-xs text-slate-300 font-semibold block">
-                      Tendered Cash Amount (KSh):
+                      Tendered Cash Amount (Ksh):
                     </label>
                     <span className="text-[10px] text-slate-400">Enter cash received from customer</span>
                   </div>

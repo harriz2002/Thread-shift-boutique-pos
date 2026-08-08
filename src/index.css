@@ -49,14 +49,20 @@
   border-color: #cbd5e1 !important;
 }
 
-/* Print receipt media rules - Ensures window.print() prints clean paper receipts */
+/* Print receipt media rules - Optimized for Standard 80mm x 80mm Thermal Paper Roll */
 @media print {
+  @page {
+    size: 80mm auto; /* Standard 80mm thermal receipt paper roll width */
+    margin: 0;
+  }
+
   html, body {
     background-color: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
+    width: 80mm !important;
   }
 
   /* Reset fixed modal backdrops during print so they don't cover or clip printable area */
@@ -85,18 +91,21 @@
     color: #000000 !important;
   }
 
-  /* Position printable receipt cleanly at top-left of printed page */
+  /* Position printable receipt cleanly at top-left of printed page for 80mm thermal rolls */
   .printable-receipt {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
-    max-width: 80mm !important; /* Standard 80mm thermal receipt printer width */
+    width: 80mm !important;
+    max-width: 80mm !important; /* Standard 80mm thermal receipt roll width */
+    box-sizing: border-box !important;
     margin: 0 auto !important;
-    padding: 12px !important;
+    padding: 4mm 3mm !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
     color: #000000 !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
   }
 }

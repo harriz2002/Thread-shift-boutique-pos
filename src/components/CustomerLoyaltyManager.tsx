@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { Customer, ClothingSize } from '../types';
+import { formatCurrency } from '../utils/format';
 
 interface CustomerLoyaltyManagerProps {
   customers: Customer[];
@@ -30,7 +31,7 @@ export const CustomerLoyaltyManager: React.FC<CustomerLoyaltyManagerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedCustForCredit, setSelectedCustForCredit] = useState<Customer | null>(null);
-  const [creditToAdd, setCreditToAdd] = useState<string>('20');
+  const [creditToAdd, setCreditToAdd] = useState<string>('500');
 
   // Form State
   const [name, setName] = useState('');
@@ -250,14 +251,14 @@ export const CustomerLoyaltyManager: React.FC<CustomerLoyaltyManagerProps> = ({
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl text-center">
                 <span className="text-[10px] text-emerald-300/80 uppercase font-semibold block">Store Credit</span>
                 <strong className="font-mono text-emerald-400 font-extrabold text-base">
-                  ${cust.storeCredit.toFixed(2)}
+                  {formatCurrency(cust.storeCredit)}
                 </strong>
               </div>
             </div>
 
             {/* Actions */}
             <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs">
-              <span className="text-slate-400">Total Spent: <strong className="text-slate-200">${cust.totalSpent.toFixed(2)}</strong></span>
+              <span className="text-slate-400">Total Spent: <strong className="text-slate-200">{formatCurrency(cust.totalSpent)}</strong></span>
               <button
                 onClick={() => setSelectedCustForCredit(cust)}
                 className="text-amber-400 hover:underline font-semibold text-[11px]"
@@ -285,7 +286,7 @@ export const CustomerLoyaltyManager: React.FC<CustomerLoyaltyManagerProps> = ({
             </p>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 block">Credit Amount ($):</label>
+              <label className="text-xs font-semibold text-slate-300 block">Credit Amount (Ksh):</label>
               <input
                 type="number"
                 value={creditToAdd}
