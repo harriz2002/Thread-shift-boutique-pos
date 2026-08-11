@@ -60,6 +60,7 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
   const [formData, setFormData] = useState<SystemSettings>({ ...settings });
   const [activeTab, setActiveTab] = useState<'profile' | 'receipt' | 'inventory' | 'stores' | 'backup'>('profile');
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
   const [applyThresholdMsg, setApplyThresholdMsg] = useState<string | null>(null);
   const [lastBackupDate, setLastBackupDate] = useState<string | null>(() => {
     return localStorage.getItem('ts_last_backup_date');
@@ -138,7 +139,11 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
     try {
       onUpdateSettings(formData);
       setSaveSuccessMessage('Business profile and system settings saved successfully!');
-      setTimeout(() => setSaveSuccessMessage(null), 4000);
+      setIsSaved(true);
+      setTimeout(() => {
+        setSaveSuccessMessage(null);
+        setIsSaved(false);
+      }, 3000);
     } catch (err) {
       console.error('Error saving system settings:', err);
       alert('An error occurred while saving system settings.');
@@ -240,18 +245,22 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
           <button
             type="button"
             onClick={() => handleSave()}
-            className="py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110 text-slate-950 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+            className={`py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg ${
+              isSaved
+                ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110 text-slate-950 shadow-amber-500/20'
+            }`}
           >
-            <Save className="w-4 h-4" />
-            <span>Save Preferences</span>
+            {isSaved ? <Check className="w-4 h-4 animate-pulse" /> : <Save className="w-4 h-4" />}
+            <span>{isSaved ? 'Saved Successfully!' : 'Save Preferences'}</span>
           </button>
         </div>
       </div>
 
       {/* Save Toast Notification */}
       {saveSuccessMessage && (
-        <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 p-4 rounded-xl flex items-center gap-3 text-sm font-semibold animate-fade-in shadow-lg">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-[200] bg-emerald-600 border border-emerald-500/40 text-white p-4 rounded-xl flex items-center gap-3 text-sm font-semibold animate-fade-in shadow-2xl max-w-sm">
+          <CheckCircle2 className="w-5 h-5 text-emerald-100 shrink-0" />
           <span>{saveSuccessMessage}</span>
         </div>
       )}
@@ -523,10 +532,14 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                className={`py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                  isSaved
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                }`}
               >
-                <Save className="w-4 h-4" />
-                <span>Save Business Profile</span>
+                {isSaved ? <Check className="w-4 h-4 animate-pulse" /> : <Save className="w-4 h-4" />}
+                <span>{isSaved ? 'Business Profile Saved!' : 'Save Business Profile'}</span>
               </button>
             </div>
           </div>
@@ -600,10 +613,14 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                className={`py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                  isSaved
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                }`}
               >
-                <Save className="w-4 h-4" />
-                <span>Save Receipt Format</span>
+                {isSaved ? <Check className="w-4 h-4 animate-pulse" /> : <Save className="w-4 h-4" />}
+                <span>{isSaved ? 'Receipt Format Saved!' : 'Save Receipt Format'}</span>
               </button>
             </div>
           </form>
@@ -773,10 +790,14 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                className={`py-2.5 px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                  isSaved
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                }`}
               >
-                <Save className="w-4 h-4" />
-                <span>Save Inventory Rules</span>
+                {isSaved ? <Check className="w-4 h-4 animate-pulse" /> : <Save className="w-4 h-4" />}
+                <span>{isSaved ? 'Inventory Rules Saved!' : 'Save Inventory Rules'}</span>
               </button>
             </div>
           </div>

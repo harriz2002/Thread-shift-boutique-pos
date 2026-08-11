@@ -98,60 +98,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     onClose();
   };
 
-  const handleDemoEmployee = () => {
-    const demoEmployee: UserAccount = {
-      id: `emp-demo-${Date.now()}`,
-      name: 'Cole Sonea (Cashier)',
-      email: 'collesonea@gmail.com',
-      role: 'employee',
-      password: 'password123',
-      pin: '1234',
-      assignedStoreId: stores[0]?.id || 'store-1',
-      department: 'Cashier & Sales',
-      createdAt: new Date().toISOString().split('T')[0],
-      isActive: true,
-    };
-    onSignUp(demoEmployee);
-    onSignIn(demoEmployee);
-    onClose();
-  };
-
-  const handleDemoAdmin = () => {
-    const demoAdmin: UserAccount = {
-      id: `admin-demo-${Date.now()}`,
-      name: 'Wilson Admin (Director)',
-      email: 'admin@threadsstyle.co.ke',
-      role: 'admin',
-      password: 'adminpassword123',
-      pin: '9999',
-      assignedStoreId: stores[0]?.id || 'store-1',
-      department: 'Store Director',
-      createdAt: new Date().toISOString().split('T')[0],
-      isActive: true,
-    };
-    onSignUp(demoAdmin);
-    onSignIn(demoAdmin);
-    onClose();
-  };
-
-  const handleGoogleDemo = () => {
-    const demoUser: UserAccount = {
-      id: `google-${Date.now()}`,
-      name: name.trim() || 'Google User',
-      email: email.trim() || 'user@gmail.com',
-      role: role,
-      password: 'password123',
-      pin: '1234',
-      assignedStoreId: stores[0]?.id || 'store-1',
-      department: role === 'admin' ? 'Store Director' : 'Cashier & Sales',
-      createdAt: new Date().toISOString().split('T')[0],
-      isActive: true,
-    };
-    onSignUp(demoUser);
-    onSignIn(demoUser);
-    onClose();
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
       <div className="bg-white text-slate-900 border border-slate-200 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
@@ -402,62 +348,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
           )}
-
-          {/* OR Divider */}
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-200"></div>
-            <span className="flex-shrink mx-4 text-slate-400 text-[10px] uppercase font-bold tracking-widest bg-white px-2">
-              OR
-            </span>
-            <div className="flex-grow border-t border-slate-200"></div>
-          </div>
-
-          {/* Quick Demo Role Buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleDemoEmployee}
-              className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm"
-              title="1-Click sign in as Employee Cashier"
-            >
-              <span>👔</span> Demo Employee
-            </button>
-            <button
-              type="button"
-              onClick={handleDemoAdmin}
-              className="w-full bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-700 font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs shadow-sm"
-              title="1-Click sign in as Store Admin"
-            >
-              <span>👑</span> Demo Admin
-            </button>
-          </div>
-
-          {/* Continue with Google */}
-          <button
-            type="button"
-            onClick={handleGoogleDemo}
-            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold py-2.5 rounded-2xl transition-all flex items-center justify-center gap-2 text-xs shadow-sm"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.19v3.15C3.2 21.3 7.23 24 12 24z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.19C.43 8.1 0 9.99 0 12s.43 3.9 1.19 5.42l4.09-3.15z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.23 0 3.2 2.7 1.19 6.58l4.09 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-              />
-            </svg>
-            Continue with Google
-          </button>
 
           {/* Footer toggle link */}
           <div className="text-center pt-2">

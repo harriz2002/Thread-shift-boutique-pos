@@ -72,6 +72,35 @@ const normalizeProductsThreshold = (prods: MasterProduct[]): MasterProduct[] => 
   }));
 };
 
+// Helper to guarantee the presence of the requested admin user account
+const ensureAdminUserExists = (userList: UserAccount[]): UserAccount[] => {
+  const targetAdmin: UserAccount = {
+    id: 'user-admin-1',
+    name: 'admin',
+    email: 'admin@gmail.com',
+    role: 'admin',
+    password: 'admin',
+    pin: '1234',
+    department: 'Executive Store Director',
+    assignedStoreId: 'store-1',
+    createdAt: '2026-01-01',
+    isActive: true,
+  };
+  const list = [...(userList || [])];
+  const adminIndex = list.findIndex(u => u.email?.toLowerCase() === 'admin@gmail.com' || u.name?.toLowerCase() === 'admin');
+  if (adminIndex > -1) {
+    list[adminIndex] = { ...list[adminIndex], ...targetAdmin };
+  } else {
+    const idIndex = list.findIndex(u => u.id === 'user-admin-1');
+    if (idIndex > -1) {
+      list[idIndex] = targetAdmin;
+    } else {
+      list.push(targetAdmin);
+    }
+  }
+  return list;
+};
+
 export default function App() {
   // Application State with LocalStorage fallbacks for persistent sessions
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -202,7 +231,8 @@ export default function App() {
   // User Authentication & Staff Roles State
   const [users, setUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem('ts_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    const parsed = saved ? JSON.parse(saved) : INITIAL_USERS;
+    return ensureAdminUserExists(parsed);
   });
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -338,7 +368,7 @@ export default function App() {
           setHolds(data.holds);
           setTransfers(data.transfers);
           if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
-          if (data.users && data.users.length > 0) setUsers(data.users);
+          if (data.users && data.users.length > 0) setUsers(ensureAdminUserExists(data.users));
         }
         setIsSupabaseLoaded(true);
       })

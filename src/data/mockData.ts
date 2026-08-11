@@ -851,8 +851,8 @@ export const INITIAL_TRANSFERS: StockTransfer[] = [
 export const INITIAL_USERS: UserAccount[] = [
   {
     id: 'user-admin-1',
-    name: 'Sarah Vance',
-    email: 'admin@threadsstyle.com',
+    name: 'admin',
+    email: 'admin@gmail.com',
     role: 'admin',
     password: 'admin',
     pin: '1234',
