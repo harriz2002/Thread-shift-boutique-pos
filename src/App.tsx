@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { bootstrapFirestoreIfEmpty, saveDocument, deleteDocument } from './lib/firebase';
+import { bootstrapFirestoreIfEmpty, saveDocument, deleteDocument, subscribeToSettings } from './lib/firebase';
 import {
   bootstrapSupabaseData,
   saveSupabaseDocument,
@@ -37,7 +37,7 @@ import {
 } from './types';
 
 // Components
-import { Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, X } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { RegisterPOS } from './components/RegisterPOS';
@@ -351,6 +351,10 @@ export default function App() {
     bootstrapFirestoreIfEmpty()
       .then((data) => {
         if (!mounted) return;
+        if (data.settings) {
+          setSystemSettings(data.settings);
+          localStorage.setItem('ts_system_settings', JSON.stringify(data.settings));
+        }
         setIsFirebaseLoaded(true);
       })
       .catch((err) => {
@@ -362,6 +366,20 @@ export default function App() {
       mounted = false;
     };
   }, []);
+
+  // Real-time sync for system settings (including logo URL) from Firestore
+  useEffect(() => {
+    if (!isFirebaseLoaded) return;
+    const unsubscribe = subscribeToSettings((remoteSettings) => {
+      if (remoteSettings) {
+        setSystemSettings(remoteSettings);
+        localStorage.setItem('ts_system_settings', JSON.stringify(remoteSettings));
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [isFirebaseLoaded]);
 
   // Sync state to localStorage, Supabase, & Firebase Firestore
   useEffect(() => {
@@ -872,11 +890,31 @@ export default function App() {
     >
       
 
-      {/* Network Status Banner */}
+      {/* Network Status Toast (Non-obstructive) */}
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-[100] bg-red-500 text-white py-1.5 px-4 flex items-center justify-center gap-2 text-sm font-bold shadow-md shadow-red-500/20">
-          <WifiOff className="w-4 h-4" />
-          <span>You are currently offline. Changes will be synced when connection is restored.</span>
+        <div className="fixed bottom-4 right-4 z-[100] bg-rose-600 hover:bg-rose-700 text-white py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-xs font-bold shadow-xl border border-rose-500/40 transition-all">
+          <WifiOff className="w-4 h-4 text-rose-200 animate-pulse" />
+          <div className="flex flex-col text-left">
+            <span>Offline Mode</span>
+            <span className="text-[10px] font-normal text-rose-200">Local edits will sync when back online.</span>
+          </div>
+          <button
+            onClick={() => setIsOnline(true)}
+            className="ml-2 p-1 hover:bg-white/10 rounded-lg text-rose-200 hover:text-white transition-colors cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {showOnlineAlert && (
+        <div className="fixed bottom-4 right-4 z-[100] bg-emerald-600 text-white py-2.5 px-4 rounded-xl flex items-center gap-2.5 text-xs font-bold shadow-xl border border-emerald-500/40 transition-all">
+          <Wifi className="w-4 h-4 text-emerald-200 animate-bounce" />
+          <div className="flex flex-col text-left">
+            <span>Back Online!</span>
+            <span className="text-[10px] font-normal text-emerald-200">All data has been synced to the database.</span>
+          </div>
         </div>
       )}
       

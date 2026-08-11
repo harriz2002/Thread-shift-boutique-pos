@@ -304,31 +304,33 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             )}
 
             {/* Highly Visible QR Code for Camera Scanning & Official Verification */}
-            <div className="pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
-              <div 
-                className="inline-flex flex-col items-center bg-white p-3.5 rounded-2xl border-2 border-slate-900 shadow-md cursor-pointer hover:bg-slate-50 transition-all group max-w-full"
-                onClick={() => setIsQrScannerOpen(true)}
-                title="Click to open Receipt QR Scanner & Verifier Tool"
-              >
-                <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
-                  <QRCodeSVG
-                    value={qrDataText}
-                    size={175}
-                    level="Q"
-                    includeMargin={true}
-                    fgColor="#000000"
-                    bgColor="#FFFFFF"
-                  />
+            {systemSettings?.showReceiptBarcode !== false && (
+              <div className="pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+                <div 
+                  className="inline-flex flex-col items-center bg-white p-3.5 rounded-2xl border-2 border-slate-900 shadow-md cursor-pointer hover:bg-slate-50 transition-all group max-w-full"
+                  onClick={() => setIsQrScannerOpen(true)}
+                  title="Click to open Receipt QR Scanner & Verifier Tool"
+                >
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
+                    <QRCodeSVG
+                      value={qrDataText}
+                      size={175}
+                      level="Q"
+                      includeMargin={true}
+                      fgColor="#000000"
+                      bgColor="#FFFFFF"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900 group-hover:text-emerald-700">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 inline shrink-0" />
+                    <span>SCAN TO VERIFY RECEIPT</span>
+                  </div>
+                  <span className="text-[8.5px] text-slate-500 font-mono mt-0.5">
+                    Click QR code to test camera scanner
+                  </span>
                 </div>
-                <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900 group-hover:text-emerald-700">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 inline shrink-0" />
-                  <span>SCAN TO VERIFY RECEIPT</span>
-                </div>
-                <span className="text-[8.5px] text-slate-500 font-mono mt-0.5">
-                  Click QR code to test camera scanner
-                </span>
               </div>
-            </div>
+            )}
 
             {/* Footer Messages */}
             <div className="text-center pt-2 border-t border-dashed border-slate-300 space-y-1">

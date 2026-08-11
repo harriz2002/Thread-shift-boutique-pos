@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
+  getDoc,
   getDocFromServer, 
   collection, 
   getDocs, 
@@ -20,7 +21,8 @@ import {
   HoldCart,
   StockTransfer,
   ReorderPO,
-  UserAccount
+  UserAccount,
+  SystemSettings
 } from '../types';
 import {
   INITIAL_STORES,
@@ -131,6 +133,7 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
   transfers: StockTransfer[];
   purchaseOrders: ReorderPO[];
   users: UserAccount[];
+  settings?: SystemSettings;
 }> {
   try {
     const storesSnap = await getDocs(collection(db, COL_STORES));
@@ -142,6 +145,17 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
     const transfersSnap = await getDocs(collection(db, COL_TRANSFERS));
     const poSnap = await getDocs(collection(db, COL_PURCHASE_ORDERS));
     const usersSnap = await getDocs(collection(db, COL_USERS));
+
+    // Try fetching settings/global
+    let settingsData: SystemSettings | undefined = undefined;
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', 'global'));
+      if (settingsSnap.exists()) {
+        settingsData = settingsSnap.data() as SystemSettings;
+      }
+    } catch (e) {
+      console.warn('Failed to load settings from Firestore:', e);
+    }
 
     let storesList: StoreLocation[] = storesSnap.docs.map(d => d.data() as StoreLocation);
     let productsList: MasterProduct[] = productsSnap.docs.map(d => d.data() as MasterProduct).map(p => ({
@@ -215,7 +229,8 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       holds: holdsList,
       transfers: transfersList,
       purchaseOrders: poList,
-      users: usersList
+      users: usersList,
+      settings: settingsData
     };
   } catch (error) {
     // Fallback to initial mock data if offline or network unavailable
@@ -231,4 +246,18 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       users: INITIAL_USERS
     };
   }
+}
+
+/**
+ * Real-time listener for global system settings (including logo) from Firestore.
+ */
+export function subscribeToSettings(onUpdate: (settings: SystemSettings) => void): () => void {
+  const docRef = doc(db, 'settings', 'global');
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      onUpdate(docSnap.data() as SystemSettings);
+    }
+  }, (error) => {
+    console.warn("Firestore settings subscription error:", error);
+  });
 }

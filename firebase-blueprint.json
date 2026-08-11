@@ -134,6 +134,38 @@
         "totalEstimatedCost": { "type": "number" }
       },
       "required": ["poNumber", "supplierName", "dateCreated", "targetStoreId", "items", "status"]
+    },
+    "SystemSettings": {
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string", "maxLength": 150 },
+        "businessSubtitle": { "type": "string", "maxLength": 200 },
+        "tagline": { "type": "string", "maxLength": 255 },
+        "address": { "type": "string", "maxLength": 255 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "logoUrl": { "type": "string" },
+        "currencySymbol": { "type": "string", "maxLength": 10 },
+        "currencyCode": { "type": "string", "maxLength": 10 },
+        "defaultTaxRate": { "type": "number" },
+        "receiptHeader": { "type": "string", "maxLength": 500 },
+        "receiptFooterMessage": { "type": "string", "maxLength": 500 },
+        "receiptReturnPolicy": { "type": "string", "maxLength": 1000 },
+        "showReceiptBarcode": { "type": "boolean" },
+        "defaultSafetyThreshold": { "type": "number" },
+        "defaultSupplierName": { "type": "string", "maxLength": 150 }
+      },
+      "required": ["businessName"]
+    },
+    "Expense": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "date": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "maxLength": 100 },
+        "storeId": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["amount", "date", "category"]
     }
   },
   "firestore": {
@@ -169,6 +201,14 @@
       "purchase_orders": {
         "entity": "ReorderPO",
         "description": "Reorder purchase orders for vendors"
+      },
+      "settings": {
+        "entity": "SystemSettings",
+        "description": "Global system configurations and shop branding logo"
+      },
+      "expenses": {
+        "entity": "Expense",
+        "description": "Operational expense logs for profitability analysis"
       }
     }
   }

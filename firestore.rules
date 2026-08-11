@@ -97,5 +97,20 @@ service cloud.firestore {
         incoming().role is string && (incoming().role == 'admin' || incoming().role == 'employee');
       allow delete: if isValidId(userId);
     }
+
+    // Settings collection
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingsId);
+      allow delete: if isValidId(settingsId);
+    }
+
+    // Expenses collection
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow create, update: if isValidId(expenseId) &&
+        incoming().amount is number && incoming().date is string && incoming().category is string;
+      allow delete: if isValidId(expenseId);
+    }
   }
 }
