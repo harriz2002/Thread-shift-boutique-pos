@@ -9,7 +9,8 @@ import {
   getDocs, 
   setDoc, 
   deleteDoc, 
-  onSnapshot 
+  onSnapshot,
+  setLogLevel
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
@@ -22,7 +23,8 @@ import {
   StockTransfer,
   ReorderPO,
   UserAccount,
-  SystemSettings
+  SystemSettings,
+  CustomerSpecialOrder
 } from '../types';
 import {
   INITIAL_STORES,
@@ -34,6 +36,9 @@ import {
   INITIAL_TRANSFERS,
   INITIAL_USERS
 } from '../data/mockData';
+
+// Configure log level to silence transient connection warnings during offline fallback
+setLogLevel('error');
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
@@ -102,6 +107,7 @@ const COL_HOLDS = 'holds';
 const COL_TRANSFERS = 'transfers';
 const COL_PURCHASE_ORDERS = 'purchase_orders';
 const COL_USERS = 'users';
+const COL_SPECIAL_ORDERS = 'special_orders';
 
 // Generic sync helper
 export async function saveDocument<T extends { id: string }>(colName: string, item: T): Promise<void> {
@@ -134,6 +140,7 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
   purchaseOrders: ReorderPO[];
   users: UserAccount[];
   settings?: SystemSettings;
+  specialOrders: CustomerSpecialOrder[];
 }> {
   try {
     const storesSnap = await getDocs(collection(db, COL_STORES));
@@ -145,6 +152,14 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
     const transfersSnap = await getDocs(collection(db, COL_TRANSFERS));
     const poSnap = await getDocs(collection(db, COL_PURCHASE_ORDERS));
     const usersSnap = await getDocs(collection(db, COL_USERS));
+
+    let specialOrdersList: CustomerSpecialOrder[] = [];
+    try {
+      const specialOrdersSnap = await getDocs(collection(db, COL_SPECIAL_ORDERS));
+      specialOrdersList = specialOrdersSnap.docs.map(d => d.data() as CustomerSpecialOrder);
+    } catch (e) {
+      console.warn('Failed to load special orders from Firestore:', e);
+    }
 
     // Try fetching settings/global
     let settingsData: SystemSettings | undefined = undefined;
@@ -230,7 +245,8 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       transfers: transfersList,
       purchaseOrders: poList,
       users: usersList,
-      settings: settingsData
+      settings: settingsData,
+      specialOrders: specialOrdersList
     };
   } catch (error) {
     // Fallback to initial mock data if offline or network unavailable
@@ -243,7 +259,8 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       holds: INITIAL_HOLDS,
       transfers: INITIAL_TRANSFERS,
       purchaseOrders: [],
-      users: INITIAL_USERS
+      users: INITIAL_USERS,
+      specialOrders: []
     };
   }
 }

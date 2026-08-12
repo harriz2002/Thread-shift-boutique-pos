@@ -242,3 +242,24 @@ export interface Expense {
   storeId: string;
   createdAt: string;
 }
+
+export type SpecialOrderStatus = 'pending' | 'ordered' | 'arrived' | 'completed' | 'cancelled';
+
+export interface CustomerSpecialOrder {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  itemName: string;
+  itemDescription?: string; // size, color, design specifics
+  quantity: number;
+  quotedPrice?: number;
+  depositAmount?: number;
+  notes?: string;
+  status: SpecialOrderStatus;
+  storeId: string;
+  createdBy: string; // Employee/User ID or Name
+  createdAt: string;
+  estimatedArrivalDate?: string;
+}
+

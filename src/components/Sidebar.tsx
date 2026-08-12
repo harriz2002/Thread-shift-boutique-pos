@@ -15,6 +15,7 @@ import {
   PanelLeftOpen,
   X,
   Settings,
+  ClipboardList,
 } from 'lucide-react';
 import { StoreLocation, UserAccount } from '../types';
 
@@ -23,8 +24,8 @@ interface SidebarProps {
   setIsMobileMenuOpen?: (open: boolean) => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebarCollapsed?: () => void;
-  activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings';
-  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings') => void;
+  activeTab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings' | 'special_orders';
+  setActiveTab: (tab: 'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings' | 'special_orders') => void;
   stores: StoreLocation[];
   activeStoreId: string;
   setActiveStoreId: (id: string) => void;
@@ -310,6 +311,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Users className="w-5 h-5 shrink-0" />
             {!isSidebarCollapsed && <span>Customers</span>}
+          </button>
+
+          {/* Special Requests & Orders */}
+          <button
+            onClick={() => setActiveTab('special_orders')}
+            title="Customer Out-of-Stock Requests"
+            className={`flex items-center transition-all ${
+              isSidebarCollapsed
+                ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
+                : 'w-full gap-2.5 px-3.5 py-2.5 rounded-lg text-sm font-semibold'
+            } ${
+              activeTab === 'special_orders'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <ClipboardList className="w-5 h-5 shrink-0" />
+            {!isSidebarCollapsed && <span>Special Requests</span>}
           </button>
 
           {/* Sales & Analytics / Daily Sales Report */}

@@ -34,6 +34,8 @@ import {
   UserAccount,
   SystemSettings,
   Expense,
+  CustomerSpecialOrder,
+  SpecialOrderStatus,
 } from './types';
 
 // Components
@@ -56,6 +58,7 @@ import { StoreManagerModal } from './components/StoreManagerModal';
 import { AuthModal } from './components/AuthModal';
 import { StaffManagerModal } from './components/StaffManagerModal';
 import { SystemSettingsManager } from './components/SystemSettingsManager';
+import { CustomerSpecialOrdersManager } from './components/CustomerSpecialOrdersManager';
 import { ReceiptQrScannerModal } from './components/ReceiptQrScannerModal';
 import { DailyBackupNotificationBanner } from './components/DailyBackupNotificationBanner';
 import { useGlobalBarcodeScanner } from './hooks/useBarcodeScanner';
@@ -216,8 +219,14 @@ export default function App() {
 
   // Active UI tab
   const [activeTab, setActiveTab] = useState<
-    'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings'
+    'pos' | 'inventory' | 'customers' | 'analytics' | 'layaway' | 'returns' | 'settings' | 'special_orders'
   >('pos');
+
+  // Customer Special Orders / Requests State
+  const [specialOrders, setSpecialOrders] = useState<CustomerSpecialOrder[]>(() => {
+    const saved = localStorage.getItem('ts_special_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Modal states
   const [selectedMatrixProduct, setSelectedMatrixProduct] = useState<MasterProduct | null>(null);
@@ -385,6 +394,10 @@ export default function App() {
           setSystemSettings(data.settings);
           localStorage.setItem('ts_system_settings', JSON.stringify(data.settings));
         }
+        if (data.specialOrders && data.specialOrders.length > 0) {
+          setSpecialOrders(data.specialOrders);
+          localStorage.setItem('ts_special_orders', JSON.stringify(data.specialOrders));
+        }
         setIsFirebaseLoaded(true);
       })
       .catch((err) => {
@@ -504,6 +517,13 @@ export default function App() {
       expenses.forEach((e) => saveDocument('expenses', e));
     }
   }, [expenses, isFirebaseLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem('ts_special_orders', JSON.stringify(specialOrders));
+    if (isFirebaseLoaded && specialOrders.length > 0) {
+      specialOrders.forEach((o) => saveDocument('special_orders', o));
+    }
+  }, [specialOrders, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_theme', isDarkMode ? 'dark' : 'light');
@@ -875,6 +895,27 @@ export default function App() {
     }
   };
 
+  const handleAddSpecialOrder = (order: CustomerSpecialOrder) => {
+    setSpecialOrders(prev => [order, ...prev]);
+    saveDocument('special_orders', order);
+  };
+
+  const handleUpdateSpecialOrderStatus = (orderId: string, status: SpecialOrderStatus) => {
+    setSpecialOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        const updated = { ...o, status };
+        saveDocument('special_orders', updated);
+        return updated;
+      }
+      return o;
+    }));
+  };
+
+  const handleDeleteSpecialOrder = (orderId: string) => {
+    setSpecialOrders(prev => prev.filter(o => o.id !== orderId));
+    deleteDocument('special_orders', orderId);
+  };
+
 
   // Global Barcode Scanner Listener (Physical Scanners)
   useGlobalBarcodeScanner((barcode) => {
@@ -1072,6 +1113,18 @@ export default function App() {
             customers={customers}
             onAddCustomer={handleAddCustomer}
             onUpdateStoreCredit={handleUpdateStoreCredit}
+          />
+        )}
+
+        {activeTab === 'special_orders' && (
+          <CustomerSpecialOrdersManager
+            specialOrders={specialOrders}
+            stores={stores}
+            activeStoreId={activeStoreId}
+            currentUser={currentUser}
+            onAddSpecialOrder={handleAddSpecialOrder}
+            onUpdateOrderStatus={handleUpdateSpecialOrderStatus}
+            onDeleteSpecialOrder={handleDeleteSpecialOrder}
           />
         )}
 
