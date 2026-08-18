@@ -154,6 +154,39 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <style>{`
+        @media print {
+          /* Hide all screen components */
+          body * {
+            visibility: hidden !important;
+          }
+          /* Show ONLY the thermal receipt content */
+          .printable-receipt, .printable-receipt * {
+            visibility: visible !important;
+          }
+          /* Format the receipt to exact standard 80mm paper dimensions */
+          .printable-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            box-sizing: border-box !important;
+            padding: 4mm 2mm !important;
+            margin: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          /* Control print dimensions and margins for standard thermal printers */
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+        }
+      `}</style>
       <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden text-slate-100 my-8">
         
         {/* Header Bar */}

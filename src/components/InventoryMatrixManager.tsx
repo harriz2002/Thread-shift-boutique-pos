@@ -33,7 +33,8 @@ import {
   StoreLocation, 
   StockTransfer, 
   ReorderPO,
-  ProductCategory
+  ProductCategory,
+  UserAccount
 } from '../types';
 import { formatCurrency } from '../utils/format';
 
@@ -43,6 +44,7 @@ interface InventoryMatrixManagerProps {
   activeStoreId: string;
   transfers: StockTransfer[];
   purchaseOrders: ReorderPO[];
+  currentUser?: UserAccount | null;
   onAddMasterProduct: (product: MasterProduct) => void;
   onUpdateMasterProduct: (product: MasterProduct) => void;
   onDeleteMasterProduct: (productId: string) => void;
@@ -57,6 +59,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   activeStoreId,
   transfers,
   purchaseOrders,
+  currentUser,
   onAddMasterProduct,
   onUpdateMasterProduct,
   onDeleteMasterProduct,
@@ -64,6 +67,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   onCreateStockTransfer,
   onCreatePurchaseOrder,
 }) => {
+  const isAdmin = currentUser?.role === 'admin';
   const [activeTab, setActiveTab] = useState<'matrix' | 'lowstock' | 'transfers' | 'add_style'>('matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>(activeStoreId);
@@ -488,17 +492,19 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
             <span>Stock Transfers ({transfers.length})</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('add_style')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'add_style'
-                ? 'bg-amber-500 text-slate-950 shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New Clothing Product</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('add_style')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'add_style'
+                  ? 'bg-amber-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Clothing Product</span>
+            </button>
+          )}
         </div>
 
         {/* Store Location Filter */}
@@ -537,21 +543,25 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setActiveTab('add_style')}
-                className="flex-1 sm:flex-initial bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Product</span>
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => setActiveTab('add_style')}
+                    className="flex-1 sm:flex-initial bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Product</span>
+                  </button>
 
-              <button
-                onClick={() => setIsTransferModalOpen(true)}
-                className="flex-1 sm:flex-initial bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <ArrowRightLeft className="w-4 h-4 text-amber-400" />
-                <span>Transfer Stock</span>
-              </button>
+                  <button
+                    onClick={() => setIsTransferModalOpen(true)}
+                    className="flex-1 sm:flex-initial bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ArrowRightLeft className="w-4 h-4 text-amber-400" />
+                    <span>Transfer Stock</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -608,36 +618,38 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                         </strong>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setAddVariantToProduct(product);
-                            setNewVarColor(product.variants[0]?.color || 'Black');
-                            setNewVarSize('M');
-                            setNewVarStock(10);
-                          }}
-                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-semibold text-xs rounded-xl border border-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
-                          title="Add New Custom Size Variant to Product"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Size</span>
-                        </button>
+                      {isAdmin && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setAddVariantToProduct(product);
+                              setNewVarColor(product.variants[0]?.color || 'Black');
+                              setNewVarSize('M');
+                              setNewVarStock(10);
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-semibold text-xs rounded-xl border border-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Add New Custom Size Variant to Product"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Size</span>
+                          </button>
 
-                        <button
-                          onClick={() => setEditingProduct(product)}
-                          className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                          title="Edit Product Details & Picture"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteMasterProduct(product.id)}
-                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                          title="Delete Product"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => setEditingProduct(product)}
+                            className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                            title="Edit Product Details & Picture"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteMasterProduct(product.id)}
+                            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -683,18 +695,20 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
 
                               <td className="py-2.5 px-3 text-center">
                                 <div className="inline-flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-                                  <button
-                                    onClick={() =>
-                                      onUpdateVariantStock(
-                                        variant.id,
-                                        selectedStoreFilter,
-                                        Math.max(0, stock - 1)
-                                      )
-                                    }
-                                    className="text-slate-400 hover:text-slate-100 font-mono px-1 font-bold cursor-pointer"
-                                  >
-                                    -
-                                  </button>
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() =>
+                                        onUpdateVariantStock(
+                                          variant.id,
+                                          selectedStoreFilter,
+                                          Math.max(0, stock - 1)
+                                        )
+                                      }
+                                      className="text-slate-400 hover:text-slate-100 font-mono px-1 font-bold cursor-pointer"
+                                    >
+                                      -
+                                    </button>
+                                  )}
                                   <span
                                     className={`font-mono font-bold w-8 text-center ${
                                       stock < variant.reorderLevel
@@ -704,18 +718,20 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                                   >
                                     {stock}
                                   </span>
-                                  <button
-                                    onClick={() =>
-                                      onUpdateVariantStock(
-                                        variant.id,
-                                        selectedStoreFilter,
-                                        stock + 1
-                                      )
-                                    }
-                                    className="text-slate-400 hover:text-slate-100 font-mono px-1 font-bold cursor-pointer"
-                                  >
-                                    +
-                                  </button>
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() =>
+                                        onUpdateVariantStock(
+                                          variant.id,
+                                          selectedStoreFilter,
+                                          stock + 1
+                                        )
+                                      }
+                                      className="text-slate-400 hover:text-slate-100 font-mono px-1 font-bold cursor-pointer"
+                                    >
+                                      +
+                                    </button>
+                                  )}
                                 </div>
                               </td>
 
@@ -758,23 +774,25 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
 
             
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  products.forEach((p) => {
-                    const updatedVariants = p.variants.map((v) => ({
-                      ...v,
-                      reorderLevel: 1,
-                    }));
-                    onUpdateMasterProduct({ ...p, variants: updatedVariants });
-                  });
-                }}
-                className="py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer"
-                title="Reset minimum safety threshold for all variants to 1 unit"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Set All Thresholds to 1</span>
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    products.forEach((p) => {
+                      const updatedVariants = p.variants.map((v) => ({
+                        ...v,
+                        reorderLevel: 1,
+                      }));
+                      onUpdateMasterProduct({ ...p, variants: updatedVariants });
+                    });
+                  }}
+                  className="py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer"
+                  title="Reset minimum safety threshold for all variants to 1 unit"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Set All Thresholds to 1</span>
+                </button>
+              )}
               <button
                 onClick={exportPurchaseOrdersCSV}
                 className="py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
@@ -782,18 +800,20 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>Export Supplier Ledger</span>
               </button>
-              <button
-              onClick={handleGeneratePO}
-              disabled={lowStockList.length === 0}
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                lowStockList.length === 0
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Generate Supplier Purchase Order PO</span>
-            </button>
+              {isAdmin && (
+                <button
+                  onClick={handleGeneratePO}
+                  disabled={lowStockList.length === 0}
+                  className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    lowStockList.length === 0
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Generate Supplier Purchase Order PO</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -848,13 +868,15 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
               <p className="text-xs text-slate-400">Track inter-store garment movements</p>
             </div>
 
-            <button
-              onClick={() => setIsTransferModalOpen(true)}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Transfer</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setIsTransferModalOpen(true)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Transfer</span>
+              </button>
+            )}
           </div>
 
           <div className="space-y-3">

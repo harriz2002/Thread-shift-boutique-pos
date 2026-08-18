@@ -213,38 +213,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isSidebarCollapsed && <span>POS Register</span>}
           </button>
 
-          {/* Variant Matrix (Admin Only) */}
-          {currentUser?.role === 'admin' && (
-            <button
-              onClick={() => setActiveTab('inventory')}
-              title="Variant Matrix"
-              className={`flex items-center transition-all relative ${
-                isSidebarCollapsed
-                  ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
-                  : 'w-full justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold'
-              } ${
-                activeTab === 'inventory'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-5 h-5 shrink-0" />
-                {!isSidebarCollapsed && <span>Variant Matrix</span>}
-              </div>
-              {lowStockCount > 0 && (
-                <span
-                  className={`${
-                    isSidebarCollapsed
-                      ? 'absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-extrabold text-[9px] w-5 h-5 flex items-center justify-center rounded-full border border-slate-900 shadow'
-                      : 'bg-amber-900 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full'
-                  }`}
-                >
-                  {lowStockCount}
-                </span>
-              )}
-            </button>
-          )}
+          {/* Variant Matrix (Visible to All Staff) */}
+          <button
+            onClick={() => setActiveTab('inventory')}
+            title="Variant Matrix"
+            className={`flex items-center transition-all relative ${
+              isSidebarCollapsed
+                ? 'w-12 h-12 justify-center rounded-xl text-sm font-semibold'
+                : 'w-full justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold'
+            } ${
+              activeTab === 'inventory'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Layers className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Variant Matrix</span>}
+            </div>
+            {lowStockCount > 0 && (
+              <span
+                className={`${
+                  isSidebarCollapsed
+                    ? 'absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-extrabold text-[9px] w-5 h-5 flex items-center justify-center rounded-full border border-slate-900 shadow'
+                    : 'bg-amber-900 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full'
+                }`}
+              >
+                {lowStockCount}
+              </span>
+            )}
+          </button>
 
           {/* Hold & Layaway */}
           <button

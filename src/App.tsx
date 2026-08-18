@@ -944,7 +944,7 @@ export default function App() {
   // Security & Role Restrictions: Auto-redirect employees from restricted tabs and lock active store to assigned store
   useEffect(() => {
     if (currentUser?.role === 'employee') {
-      if (activeTab === 'inventory' || activeTab === 'settings') {
+      if (activeTab === 'settings') {
         setActiveTab('pos');
       }
       if (currentUser.assignedStoreId && activeStoreId !== currentUser.assignedStoreId) {
@@ -1076,6 +1076,7 @@ export default function App() {
             activeStoreId={activeStoreId}
             transfers={transfers}
             purchaseOrders={purchaseOrders}
+            currentUser={currentUser}
             onAddMasterProduct={handleAddMasterProduct}
             onUpdateMasterProduct={handleUpdateMasterProduct}
             onDeleteMasterProduct={handleDeleteMasterProduct}
@@ -1091,6 +1092,7 @@ export default function App() {
             layaways={layaways}
             stores={stores}
             activeStoreId={activeStoreId}
+            systemSettings={systemSettings}
             onRestoreHoldCart={handleRestoreHoldCart}
             onDeleteHoldCart={handleDeleteHoldCart}
             onAddLayawayPayment={handleAddLayawayPayment}

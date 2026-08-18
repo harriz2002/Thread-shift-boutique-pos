@@ -19,7 +19,8 @@ import {
   Phone,
   ShieldCheck
 } from 'lucide-react';
-import { HoldCart, LayawayPlan, CartItem, PaymentMethod, StoreLocation } from '../types';
+import { QRCodeSVG } from 'qrcode.react';
+import { HoldCart, LayawayPlan, CartItem, PaymentMethod, StoreLocation, SystemSettings } from '../types';
 import { formatCurrency, maskPhoneNumber } from '../utils/format';
 
 interface HoldAndLayawayModalProps {
@@ -27,6 +28,7 @@ interface HoldAndLayawayModalProps {
   layaways: LayawayPlan[];
   stores: StoreLocation[];
   activeStoreId: string;
+  systemSettings?: SystemSettings;
   onRestoreHoldCart: (hold: HoldCart) => void;
   onDeleteHoldCart: (holdId: string) => void;
   onAddLayawayPayment: (
@@ -43,6 +45,7 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
   layaways,
   stores,
   activeStoreId,
+  systemSettings,
   onRestoreHoldCart,
   onDeleteHoldCart,
   onAddLayawayPayment,
@@ -56,6 +59,28 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
 
   // Selected layaway for viewing/printing receipt
   const [receiptLayaway, setReceiptLayaway] = useState<LayawayPlan | null>(null);
+
+  const receiptStore = receiptLayaway 
+    ? (stores.find((s) => s.id === receiptLayaway.storeId) || stores.find((s) => s.id === activeStoreId) || stores[0])
+    : null;
+  const storeName = receiptStore?.name || systemSettings?.businessName || 'Threads & Style Boutique';
+
+  const qrDataText = receiptLayaway ? [
+    `=== LAYAWAY RECEIPT VERIFICATION ===`,
+    `Boutique / Store: ${storeName}`,
+    `Plan Number: ${receiptLayaway.planNumber}`,
+    `Customer Name: ${receiptLayaway.customerName}`,
+    `Status: ${receiptLayaway.status.toUpperCase()}`,
+    ``,
+    `--- ITEMS RESERVED ---`,
+    receiptLayaway.cartItems.map((item, idx) => 
+      `${idx + 1}. ${item.product.title} (${item.variant.color}/${item.variant.size}) x${item.quantity}`
+    ).join('\n'),
+    ``,
+    `Total Value: ${formatCurrency(receiptLayaway.totalAmount)}`,
+    `Amount Paid: ${formatCurrency(receiptLayaway.depositPaid)}`,
+    `Balance Due: ${formatCurrency(receiptLayaway.balanceDue)}`
+  ].join('\n') : '';
 
   // Layaway payment popup state
   const [paymentAmount, setPaymentAmount] = useState<string>('');
@@ -565,6 +590,39 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
       {/* PRINTABLE LAYAWAY / RELEASE RECEIPT MODAL */}
       {receiptLayaway && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <style>{`
+            @media print {
+              /* Hide all screen components */
+              body * {
+                visibility: hidden !important;
+              }
+              /* Show ONLY the thermal receipt content */
+              .printable-receipt, .printable-receipt * {
+                visibility: visible !important;
+              }
+              /* Format the receipt to exact standard 80mm paper dimensions */
+              .printable-receipt {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 80mm !important;
+                max-width: 80mm !important;
+                box-sizing: border-box !important;
+                padding: 4mm 2mm !important;
+                margin: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+              }
+              /* Control print dimensions and margins for standard thermal printers */
+              @page {
+                size: 80mm auto;
+                margin: 0;
+              }
+            }
+          `}</style>
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-slate-100 space-y-4 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3 no-print">
               <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
@@ -584,14 +642,35 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
             {/* Printable Thermal Layaway Receipt Card */}
             <div className="bg-white text-slate-950 font-mono text-xs p-6 rounded-xl border border-slate-200 printable-receipt space-y-4 shadow-inner">
               
-              <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
-                <h2 className="text-base font-extrabold uppercase tracking-widest text-slate-900">
-                  Threads & Style
-                </h2>
-                <p className="text-[10px] text-slate-600 font-bold uppercase">
-                  {receiptLayaway.status === 'completed' ? '*** LAYAWAY RELEASE RECEIPT ***' : '*** LAYAWAY PLAN STATEMENT ***'}
-                </p>
-                <p className="text-[10px] text-slate-500">Nairobi Flagship Boutique</p>
+              {/* Store Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-dashed border-slate-300 gap-2">
+                <div className="shrink-0 flex items-start pt-0.5">
+                  {systemSettings?.logoUrl ? (
+                    <img
+                      src={systemSettings.logoUrl}
+                      alt="Shop Logo"
+                      className="max-h-16 max-w-[90px] object-contain filter grayscale contrast-200"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-slate-950 text-amber-400 rounded-lg flex items-center justify-center p-2 shadow-sm border border-slate-800">
+                      <ShoppingBag className="w-6 h-6" />
+                    </div>
+                  )}
+                </div>
+                <div className="text-right space-y-0.5 min-w-0 flex-1">
+                  <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 leading-tight">
+                    {systemSettings?.receiptHeader || systemSettings?.businessName || 'Threads & Style'}
+                  </h2>
+                  <p className="text-[10px] font-mono text-slate-600 font-bold uppercase leading-tight mt-0.5">
+                    {receiptLayaway.status === 'completed' ? '*** LAYAWAY RELEASE RECEIPT ***' : '*** LAYAWAY PLAN STATEMENT ***'}
+                  </p>
+                  <p className="text-[11px] font-sans text-slate-700 font-bold leading-tight mt-0.5">
+                    {storeName}
+                  </p>
+                  <p className="text-[10px] text-slate-500 leading-tight">{receiptStore?.address || systemSettings?.address}</p>
+                  <p className="text-[10px] text-slate-500 leading-tight">TEL: {receiptStore?.phone || systemSettings?.phone}</p>
+                </div>
               </div>
 
               {/* Customer & Plan Details */}
@@ -663,6 +742,26 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
                 </div>
               )}
 
+              {/* Highly Visible QR Code for Camera Scanning & Official Verification */}
+              {systemSettings?.showReceiptBarcode !== false && (
+                <div className="pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
+                    <QRCodeSVG
+                      value={qrDataText}
+                      size={140}
+                      level="Q"
+                      includeMargin={true}
+                      fgColor="#000000"
+                      bgColor="#FFFFFF"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-900">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline shrink-0" />
+                    <span>SCAN TO VERIFY RELEASE</span>
+                  </div>
+                </div>
+              )}
+
               <div className="text-center text-[9px] text-slate-500 pt-2 border-t border-dashed border-slate-300">
                 Thank you for choosing Threads & Style!
               </div>
@@ -693,11 +792,22 @@ export const HoldAndLayawayModal: React.FC<HoldAndLayawayModalProps> = ({
                               .text-center { text-align: center; }
                               .flex { display: flex; }
                               .justify-between { justify-content: space-between; }
+                              .items-start { align-items: flex-start; }
                               .border-b { border-bottom: 1px dashed #000; }
                               .border-t { border-top: 1px dashed #000; }
                               .font-bold { font-weight: bold; }
                               .font-extrabold { font-weight: 800; }
                               .uppercase { text-transform: uppercase; }
+                              .shrink-0 { flex-shrink: 0; }
+                              .text-right { text-align: right; }
+                              .space-y-0\\.5 > * + * { margin-top: 2px; }
+                              .min-w-0 { min-width: 0; }
+                              .flex-1 { flex: 1 1 0%; }
+                              .leading-tight { line-height: 1.25; }
+                              .mt-0\\.5 { margin-top: 2px; }
+                              .gap-2 { gap: 8px; }
+                              img { max-height: 64px; max-width: 90px; object-fit: contain; }
+                              svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
                             </style>
                           </head>
                           <body>
