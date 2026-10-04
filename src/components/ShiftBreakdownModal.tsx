@@ -547,11 +547,11 @@ export const ShiftBreakdownModal: React.FC<ShiftBreakdownModalProps> = ({
 
             {/* Shift End Sign-off Block */}
             <div className="signature-box" style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', gap: '30px' }}>
-              <div className="sig-line" style={{ flex: 1, borderTop: '1px border #94a3b8', paddingTop: '8px', textAlign: 'center' }}>
+              <div className="sig-line" style={{ flex: 1, borderTop: '1px solid #94a3b8', paddingTop: '8px', textAlign: 'center' }}>
                 <p style={{ margin: 0 }}>__________________________________</p>
                 <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>Cashier Signature ({currentUser?.name || 'Cashier'})</p>
               </div>
-              <div className="sig-line" style={{ flex: 1, borderTop: '1px border #94a3b8', paddingTop: '8px', textAlign: 'center' }}>
+              <div className="sig-line" style={{ flex: 1, borderTop: '1px solid #94a3b8', paddingTop: '8px', textAlign: 'center' }}>
                 <p style={{ margin: 0 }}>__________________________________</p>
                 <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>Store Supervisor / Manager Verification</p>
               </div>

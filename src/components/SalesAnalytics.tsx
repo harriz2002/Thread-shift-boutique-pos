@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -27,7 +27,9 @@ import {
   FileSpreadsheet,
   Plus,
   Trash2,
-  PlusCircle
+  PlusCircle,
+  Clock,
+  ArrowDownRight
 } from 'lucide-react';
 import { SaleTransaction, MasterProduct, StoreLocation, ProductVariant, UserAccount, SystemSettings, Expense } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -56,9 +58,14 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   const employeeStoreId = currentUser?.assignedStoreId || stores[0]?.id || 'store-1';
   const employeeStoreObj = stores.find((s) => s.id === employeeStoreId) || stores[0];
 
-  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report' | 'expenses'>(
+  const [activeReportTab, setActiveReportTab] = useState<'overview' | 'daily_sales' | 'inventory_report' | 'expenses' | 'forecast'>(
     isEmployee ? 'daily_sales' : 'overview'
   );
+
+  // 30-Day Stock Needs Forecasting Local States
+  const [forecastStoreFilter, setForecastStoreFilter] = useState<string>('all');
+  const [forecastViewMode, setForecastViewMode] = useState<'comparison' | 'timeline'>('comparison');
+  const [forecastCategoryFilter, setForecastCategoryFilter] = useState<string>('all');
 
   const [reportStoreFilter, setReportStoreFilter] = useState<string>(() => {
     if (currentUser?.role === 'employee') {
@@ -565,6 +572,238 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
     });
   });
 
+  // 30-Day Potential Stock Needs Forecasting Analysis based on sales transactions
+  const forecastAnalysis = React.useMemo(() => {
+    const now = new Date();
+    const txList = transactions || [];
+
+    // Parse transaction dates to determine historical observation window
+    const validDates = txList
+      .map((t) => {
+        const raw = t.date || (t as any).timestamp;
+        const parsed = raw ? new Date(raw).getTime() : NaN;
+        return isNaN(parsed) ? null : parsed;
+      })
+      .filter((d): d is number => d !== null && d > 0);
+
+    const minDate = validDates.length > 0 ? Math.min(...validDates) : now.getTime() - 14 * 86400000;
+    const maxDate = validDates.length > 0 ? Math.max(...validDates, now.getTime()) : now.getTime();
+    
+    // Baseline period in days (min 7 days to calculate a clean daily run rate)
+    const observationDays = Math.max(7, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)));
+
+    // Aggregate units sold and gross revenue per product ID (filtered by store if selected)
+    const filteredTxProductSales: Record<string, { unitsSold: number; revenue: number; txCount: number }> = {};
+    
+    txList.forEach((tx) => {
+      if (forecastStoreFilter !== 'all' && tx.storeId !== forecastStoreFilter) {
+        return;
+      }
+      (tx.items || []).forEach((item) => {
+        const pId = item.product?.id;
+        if (!pId) return;
+        if (!filteredTxProductSales[pId]) {
+          filteredTxProductSales[pId] = { unitsSold: 0, revenue: 0, txCount: 0 };
+        }
+        filteredTxProductSales[pId].unitsSold += item.quantity || 1;
+        filteredTxProductSales[pId].revenue += (item.unitPrice || 0) * (item.quantity || 1);
+        filteredTxProductSales[pId].txCount += 1;
+      });
+    });
+
+    const totalCatalogUnitsSold = Object.values(filteredTxProductSales).reduce((sum, v) => sum + v.unitsSold, 0);
+    const catalogDailyAverage = (products || []).length > 0 ? (totalCatalogUnitsSold / observationDays) / (products || []).length : 0.4;
+
+    // Build forecast for each product
+    const forecastedProducts = (products || [])
+      .filter((p) => forecastCategoryFilter === 'all' || p.category === forecastCategoryFilter)
+      .map((product) => {
+        const sales = filteredTxProductSales[product.id] || { unitsSold: 0, revenue: 0, txCount: 0 };
+
+        // On-hand stock for target store(s)
+        const onHandStock = (product.variants || []).reduce((sum: number, v): number => {
+          if (!v) return sum;
+          if (forecastStoreFilter === 'all') {
+            const variantTotal = Object.values(v.stockByStore || {}).reduce<number>((s, q) => s + (Number(q) || 0), 0);
+            return sum + variantTotal;
+          } else {
+            return sum + (Number(v.stockByStore?.[forecastStoreFilter]) || 0);
+          }
+        }, 0);
+
+        // Daily sales rate (velocity)
+        const actualDailyVelocity = sales.unitsSold / observationDays;
+        const dailyVelocity = actualDailyVelocity > 0 ? actualDailyVelocity : Math.max(0.1, catalogDailyAverage * 0.5);
+
+        // 30-Day projected demand
+        const projectedDemand30Days = Math.max(1, Math.round(dailyVelocity * 30));
+
+        // Net stock deficit / reorder units needed
+        const stockNeeded = Math.max(0, projectedDemand30Days - onHandStock);
+
+        // Days of stock coverage remaining
+        const coverageDays = dailyVelocity > 0 ? Math.floor(onHandStock / dailyVelocity) : (onHandStock > 0 ? 99 : 0);
+
+        // Urgency status
+        let status: 'critical' | 'urgent' | 'reorder' | 'healthy' = 'healthy';
+        let statusLabel = 'Adequate Stock';
+        let statusColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+
+        if (onHandStock === 0) {
+          status = 'critical';
+          statusLabel = 'Stockout (Immediate)';
+          statusColor = 'text-rose-400 bg-rose-500/10 border-rose-500/30 font-bold';
+        } else if (coverageDays <= 7) {
+          status = 'urgent';
+          statusLabel = `Depleting in ${coverageDays}d (Critical)`;
+          statusColor = 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+        } else if (coverageDays <= 18) {
+          status = 'urgent';
+          statusLabel = `Depleting in ${coverageDays}d (Urgent)`;
+          statusColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+        } else if (stockNeeded > 0 || coverageDays <= 30) {
+          status = 'reorder';
+          statusLabel = `Depleting in ${coverageDays}d (Reorder)`;
+          statusColor = 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+        } else {
+          status = 'healthy';
+          statusLabel = `${coverageDays}d Coverage (Healthy)`;
+          statusColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+        }
+
+        const unitCost = product.costPrice || (product.basePrice * 0.5) || 500;
+        const estimatedReorderCost = stockNeeded * unitCost;
+
+        return {
+          product,
+          id: product.id,
+          title: product.title,
+          styleNumber: product.styleNumber,
+          category: product.category,
+          image: product.image,
+          historicalUnitsSold: sales.unitsSold,
+          dailyVelocity: Number(dailyVelocity.toFixed(2)),
+          onHandStock,
+          projectedDemand30Days,
+          stockNeeded,
+          coverageDays,
+          status,
+          statusLabel,
+          statusColor,
+          estimatedReorderCost,
+        };
+      });
+
+    // Sort: highest stock shortage first, then highest demand
+    forecastedProducts.sort((a, b) => b.stockNeeded - a.stockNeeded || b.projectedDemand30Days - a.projectedDemand30Days);
+
+    const totalProjectedDemand = forecastedProducts.reduce((sum, p) => sum + p.projectedDemand30Days, 0);
+    const totalOnHand = forecastedProducts.reduce((sum, p) => sum + p.onHandStock, 0);
+    const totalUnitsNeeded = forecastedProducts.reduce((sum, p) => sum + p.stockNeeded, 0);
+    const totalReorderCapital = forecastedProducts.reduce((sum, p) => sum + p.estimatedReorderCost, 0);
+    const criticalItemsCount = forecastedProducts.filter((p) => p.status === 'critical' || p.status === 'urgent').length;
+
+    // Top 8 garments for comparative visual bar chart
+    const chartData = forecastedProducts.slice(0, 8).map((p) => ({
+      name: p.title.length > 14 ? p.title.substring(0, 12) + '…' : p.title,
+      fullTitle: p.title,
+      styleCode: p.styleNumber,
+      category: p.category,
+      'Current Stock': p.onHandStock,
+      '30D Demand': p.projectedDemand30Days,
+      'Stock Needed': p.stockNeeded,
+    }));
+
+    // Weekly projected consumption timeline
+    const totalDailyRunRate = forecastedProducts.reduce((sum, p) => sum + p.dailyVelocity, 0);
+    const timelineData = [
+      {
+        timeline: 'Day 0 (Now)',
+        'Available Stock': totalOnHand,
+        'Cumulative Demand': 0,
+        'Safety Reserve': Math.round(totalOnHand * 0.2),
+      },
+      {
+        timeline: 'Week 1 (Day 7)',
+        'Available Stock': Math.max(0, Math.round(totalOnHand - totalDailyRunRate * 7)),
+        'Cumulative Demand': Math.round(totalDailyRunRate * 7),
+        'Safety Reserve': Math.round(totalOnHand * 0.2),
+      },
+      {
+        timeline: 'Week 2 (Day 14)',
+        'Available Stock': Math.max(0, Math.round(totalOnHand - totalDailyRunRate * 14)),
+        'Cumulative Demand': Math.round(totalDailyRunRate * 14),
+        'Safety Reserve': Math.round(totalOnHand * 0.2),
+      },
+      {
+        timeline: 'Week 3 (Day 21)',
+        'Available Stock': Math.max(0, Math.round(totalOnHand - totalDailyRunRate * 21)),
+        'Cumulative Demand': Math.round(totalDailyRunRate * 21),
+        'Safety Reserve': Math.round(totalOnHand * 0.2),
+      },
+      {
+        timeline: 'Week 4 (Day 30)',
+        'Available Stock': Math.max(0, Math.round(totalOnHand - totalDailyRunRate * 30)),
+        'Cumulative Demand': Math.round(totalDailyRunRate * 30),
+        'Safety Reserve': Math.round(totalOnHand * 0.2),
+      },
+    ];
+
+    return {
+      observationDays,
+      forecastedProducts,
+      chartData,
+      timelineData,
+      totalProjectedDemand,
+      totalOnHand,
+      totalUnitsNeeded,
+      totalReorderCapital,
+      criticalItemsCount,
+    };
+  }, [transactions, products, forecastStoreFilter, forecastCategoryFilter]);
+
+  const exportStockForecastCSV = () => {
+    const headers = [
+      'Style #',
+      'Garment Name',
+      'Category',
+      'Current On-Hand Stock (Pcs)',
+      'Historical Run Rate (Units/Day)',
+      '30-Day Projected Demand (Pcs)',
+      'Deficit / Stock Needed (Pcs)',
+      'Coverage Days Left',
+      'Estimated Reorder Cost (Ksh)',
+      'Urgency Status',
+    ];
+
+    const rows = forecastAnalysis.forecastedProducts.map((p) => [
+      p.styleNumber,
+      p.title,
+      p.category,
+      p.onHandStock,
+      p.dailyVelocity,
+      p.projectedDemand30Days,
+      p.stockNeeded,
+      p.coverageDays,
+      p.estimatedReorderCost,
+      p.statusLabel,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `30_Day_Stock_Needs_Forecast_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Helper to generate instant, data-driven fallback insights if server AI is unavailable
   const generateSmartFallbackInsights = () => {
     const topProd = rankedProducts[0]?.product?.title || 'Clothing & Footwear';
@@ -664,6 +903,410 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
     }
   };
 
+  {/* Custom Tooltip for 30-Day Forecast Bar Chart */}
+  const CustomForecastTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const dataItem = payload[0]?.payload;
+      const currentStock = payload.find((p: any) => p.dataKey === 'Current Stock')?.value ?? 0;
+      const demand = payload.find((p: any) => p.dataKey === '30D Demand')?.value ?? 0;
+      const needed = payload.find((p: any) => p.dataKey === 'Stock Needed')?.value ?? 0;
+
+      return (
+        <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl shadow-2xl text-xs space-y-2 max-w-xs font-sans">
+          <div>
+            <p className="font-bold text-slate-100">{dataItem?.fullTitle || label}</p>
+            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-mono">
+              {dataItem?.styleCode && <span>Style: {dataItem.styleCode}</span>}
+              {dataItem?.category && <span className="text-amber-400">• {dataItem.category}</span>}
+            </div>
+          </div>
+          <div className="border-t border-slate-800/80 pt-2 space-y-1.5 font-mono text-[11px]">
+            <div className="flex justify-between items-center text-sky-400">
+              <span>Current Available Stock:</span>
+              <strong className="font-bold">{currentStock} pcs</strong>
+            </div>
+            <div className="flex justify-between items-center text-amber-400">
+              <span>Forecasted 30-Day Demand:</span>
+              <strong className="font-bold">{demand} pcs</strong>
+            </div>
+            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60 font-bold">
+              <span className={needed > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                {needed > 0 ? '⚠️ Required Restock:' : '✓ Stock Status:'}
+              </span>
+              <span className={`px-1.5 py-0.2 rounded ${needed > 0 ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                {needed > 0 ? `+${needed} pcs needed` : 'Sufficient'}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderStockForecastSection = (isDedicatedTab: boolean = false) => {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-6 shadow-xl">
+        {/* Header & Controls Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-gradient-to-br from-amber-500/20 to-rose-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+                <TrendingUp className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-100 flex items-center gap-2">
+                  <span>30-Day Potential Stock Needs Forecast</span>
+                  <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Predictive Run-Rate
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Forecasting consumer demand & stock replenishment needs based on {forecastAnalysis.observationDays} days of sales transaction velocity
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls: Store, Category, View Mode & CSV Export */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Store Location Filter */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
+              <Store className="w-3.5 h-3.5 text-emerald-400" />
+              <select
+                value={forecastStoreFilter}
+                onChange={(e) => setForecastStoreFilter(e.target.value)}
+                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer"
+              >
+                <option value="all">All Store Branches</option>
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
+              <Filter className="w-3.5 h-3.5 text-amber-400" />
+              <select
+                value={forecastCategoryFilter}
+                onChange={(e) => setForecastCategoryFilter(e.target.value)}
+                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {Array.from(new Set((products || []).map((p) => p.category))).map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* View Mode Toggle: Bar vs Timeline */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setForecastViewMode('comparison')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  forecastViewMode === 'comparison'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Garment Stock vs. 30-Day Demand Bar Chart"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Garment Needs</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setForecastViewMode('timeline')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  forecastViewMode === 'timeline'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="30-Day Inventory Depletion Curve"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Depletion Curve</span>
+              </button>
+            </div>
+
+            {/* CSV Export */}
+            <button
+              type="button"
+              onClick={exportStockForecastCSV}
+              className="bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Download 30-Day Stock Forecast CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-400" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 5 Forecast KPI Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">30D Projected Demand</span>
+            <div className="text-xl font-black font-mono text-amber-400">
+              {forecastAnalysis.totalProjectedDemand} <span className="text-xs font-normal text-slate-400">Pcs</span>
+            </div>
+            <p className="text-[10px] text-slate-500">Consumer demand forecast</p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Current Stock On-Hand</span>
+            <div className="text-xl font-black font-mono text-sky-400">
+              {forecastAnalysis.totalOnHand} <span className="text-xs font-normal text-slate-400">Pcs</span>
+            </div>
+            <p className="text-[10px] text-slate-500">Available across locations</p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Stock Needed</span>
+            <div className={`text-xl font-black font-mono ${forecastAnalysis.totalUnitsNeeded > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {forecastAnalysis.totalUnitsNeeded > 0 ? `+${forecastAnalysis.totalUnitsNeeded}` : '0'}{' '}
+              <span className="text-xs font-normal text-slate-400">Pcs</span>
+            </div>
+            <p className="text-[10px] text-slate-500">Deficit to order for 30 days</p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Est. Reorder Capital</span>
+            <div className="text-xl font-black font-mono text-emerald-400 truncate">
+              {formatCurrency(forecastAnalysis.totalReorderCapital)}
+            </div>
+            <p className="text-[10px] text-slate-500">Procurement wholesale cost</p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner col-span-2 sm:col-span-1">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Depletion Risk</span>
+            <div className={`text-xl font-black font-mono ${forecastAnalysis.criticalItemsCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {forecastAnalysis.criticalItemsCount} <span className="text-xs font-normal text-slate-400">Styles</span>
+            </div>
+            <p className="text-[10px] text-slate-500">Running low in &lt;18 days</p>
+          </div>
+        </div>
+
+        {/* The Visual Chart */}
+        <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 sm:p-5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5">
+            <div>
+              <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                {forecastViewMode === 'comparison' ? (
+                  <>
+                    <BarChart3 className="w-4 h-4 text-sky-400" />
+                    <span>Garment Inventory vs. 30-Day Demand & Reorder Deficit</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4 text-amber-400" />
+                    <span>30-Day Inventory Depletion & Cumulative Demand Trajectory</span>
+                  </>
+                )}
+              </h4>
+              <p className="text-[11px] text-slate-400">
+                {forecastViewMode === 'comparison'
+                  ? 'Comparing Available Stock against 30-Day Projected Demand and Net Reorder Units Needed'
+                  : 'Weekly projected depletion of available stock as consumer demand accumulates through Day 30'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] font-mono">
+              <span className="inline-flex items-center gap-1.5 text-sky-400">
+                <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" /> Current Stock
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-amber-400">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> 30D Demand
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-rose-400">
+                <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" /> Reorder Needed
+              </span>
+            </div>
+          </div>
+
+          <div className="h-72 w-full text-xs font-mono">
+            {forecastViewMode === 'comparison' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={forecastAnalysis.chartData} margin={{ top: 15, right: 15, left: -10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#64748b"
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    angle={-15}
+                    textAnchor="end"
+                    height={45}
+                  />
+                  <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <Tooltip content={<CustomForecastTooltip />} />
+                  <Bar dataKey="Current Stock" fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={16} />
+                  <Bar dataKey="30D Demand" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={16} />
+                  <Bar dataKey="Stock Needed" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={forecastAnalysis.timelineData} margin={{ top: 15, right: 15, left: -10, bottom: 10 }}>
+                  <defs>
+                    <linearGradient id="forecastStockGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="forecastDemandGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis dataKey="timeline" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fbbf24' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Available Stock"
+                    stroke="#0ea5e9"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#forecastStockGrad)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Cumulative Demand"
+                    stroke="#f59e0b"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#forecastDemandGrad)"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Safety Reserve"
+                    stroke="#ef4444"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Actionable Reorder Recommendation Table */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-xs text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Boxes className="w-3.5 h-3.5 text-amber-400" />
+              <span>Garment Stock Needs & Replenishment Matrix (Next 30 Days)</span>
+            </h4>
+            <span className="text-[11px] font-mono text-slate-500">
+              Showing {isDedicatedTab ? forecastAnalysis.forecastedProducts.length : Math.min(6, forecastAnalysis.forecastedProducts.length)} of {forecastAnalysis.forecastedProducts.length} Garments
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900/80 text-slate-400 font-mono uppercase text-[10px] border-b border-slate-800">
+                <tr>
+                  <th className="p-3">Garment Style</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3 text-right">Daily Run-Rate</th>
+                  <th className="p-3 text-right">On-Hand Stock</th>
+                  <th className="p-3 text-right">30D Demand</th>
+                  <th className="p-3 text-center">Stock Coverage</th>
+                  <th className="p-3 text-right">Stock Needed</th>
+                  <th className="p-3 text-right">Est. Reorder Cost</th>
+                  <th className="p-3 text-center">Priority</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-sans">
+                {(isDedicatedTab ? forecastAnalysis.forecastedProducts : forecastAnalysis.forecastedProducts.slice(0, 6)).map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-900/40 transition-colors">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-8 h-8 object-cover rounded-lg border border-slate-800 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-slate-500 font-bold text-xs shrink-0">
+                            {item.title.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-bold text-slate-100 block truncate max-w-[180px]">{item.title}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">Style: {item.styleNumber}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3 text-slate-400 text-[11px] font-medium">{item.category}</td>
+                    <td className="p-3 text-right font-mono text-slate-300">
+                      {item.dailyVelocity} <span className="text-[10px] text-slate-500">pcs/d</span>
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold text-sky-400">
+                      {item.onHandStock} pcs
+                    </td>
+                    <td className="p-3 text-right font-mono font-bold text-amber-400">
+                      {item.projectedDemand30Days} pcs
+                    </td>
+                    <td className="p-3 text-center font-mono">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                        item.coverageDays <= 7
+                          ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                          : item.coverageDays <= 18
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          : item.coverageDays <= 30
+                          ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      }`}>
+                        {item.coverageDays} days left
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-mono font-black">
+                      {item.stockNeeded > 0 ? (
+                        <span className="text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md border border-rose-500/20">
+                          +{item.stockNeeded} pcs
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400 text-[11px]">
+                          ✓ Covered
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right font-mono text-slate-300">
+                      {item.stockNeeded > 0 ? formatCurrency(item.estimatedReorderCost) : '—'}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${item.statusColor}`}>
+                        {item.statusLabel}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!isDedicatedTab && forecastAnalysis.forecastedProducts.length > 6 && (
+            <div className="pt-1 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setActiveReportTab('forecast')}
+                className="text-xs text-amber-400 hover:text-amber-300 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <span>View Full 30-Day Inventory Reorder Matrix ({forecastAnalysis.forecastedProducts.length} items)</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 printable-report">
       
@@ -734,6 +1377,25 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             >
               <DollarSign className="w-3.5 h-3.5" />
               <span>Operational Expenses</span>
+            </button>
+          )}
+
+          {!isEmployee && (
+            <button
+              onClick={() => setActiveReportTab('forecast')}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeReportTab === 'forecast'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>30-Day Stock Forecast</span>
+              {forecastAnalysis.totalUnitsNeeded > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none">
+                  {forecastAnalysis.totalUnitsNeeded}
+                </span>
+              )}
             </button>
           )}
         </div>
@@ -1306,6 +1968,8 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
       </div>
 
+      {/* 30-DAY POTENTIAL STOCK NEEDS FORECASTING SECTION */}
+      {renderStockForecastSection(false)}
 
       {/* MOST BOUGHT TO LEAST BOUGHT PRODUCTS RANKING PLATFORM */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">
@@ -1966,6 +2630,13 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* 30-DAY POTENTIAL STOCK FORECAST DEDICATED VIEW */}
+      {activeReportTab === 'forecast' && (
+        <div className="space-y-6">
+          {renderStockForecastSection(true)}
         </div>
       )}
 
