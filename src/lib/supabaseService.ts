@@ -161,15 +161,67 @@ export async function bootstrapSupabaseData(): Promise<{
     const purchaseOrders = await loadSupabaseTable<ReorderPO>(SUPABASE_TABLES.PURCHASE_ORDERS);
     const users = await loadSupabaseTable<UserAccount>(SUPABASE_TABLES.USERS);
 
-    let finalStores = stores.length > 0 ? stores : INITIAL_STORES;
-    let finalProducts = products.length > 0 ? products : INITIAL_PRODUCTS;
-    let finalCustomers = customers.length > 0 ? customers : INITIAL_CUSTOMERS;
-    let finalTransactions = transactions.length > 0 ? transactions : INITIAL_TRANSACTIONS;
-    let finalLayaways = layaways.length > 0 ? layaways : INITIAL_LAYAWAYS;
-    let finalHolds = holds.length > 0 ? holds : INITIAL_HOLDS;
-    let finalTransfers = transfers.length > 0 ? transfers : INITIAL_TRANSFERS;
+    // Read localStorage fallbacks first so newly added items are never erased
+    let localProducts = INITIAL_PRODUCTS;
+    let localStores = INITIAL_STORES;
+    let localCustomers = INITIAL_CUSTOMERS;
+    let localTransactions = INITIAL_TRANSACTIONS;
+    let localLayaways = INITIAL_LAYAWAYS;
+    let localHolds = INITIAL_HOLDS;
+    let localTransfers = INITIAL_TRANSFERS;
+    let localUsers = INITIAL_USERS;
+
+    if (typeof window !== 'undefined') {
+      try {
+        const lp = localStorage.getItem('ts_products');
+        if (lp) {
+          const parsed = JSON.parse(lp);
+          if (Array.isArray(parsed) && parsed.length > 0) localProducts = parsed;
+        }
+        const ls = localStorage.getItem('ts_stores');
+        if (ls) {
+          const parsed = JSON.parse(ls);
+          if (Array.isArray(parsed) && parsed.length > 0) localStores = parsed;
+        }
+        const lc = localStorage.getItem('ts_customers');
+        if (lc) {
+          const parsed = JSON.parse(lc);
+          if (Array.isArray(parsed) && parsed.length > 0) localCustomers = parsed;
+        }
+        const lt = localStorage.getItem('ts_transactions');
+        if (lt) {
+          const parsed = JSON.parse(lt);
+          if (Array.isArray(parsed) && parsed.length > 0) localTransactions = parsed;
+        }
+        const ll = localStorage.getItem('ts_layaways');
+        if (ll) {
+          const parsed = JSON.parse(ll);
+          if (Array.isArray(parsed) && parsed.length > 0) localLayaways = parsed;
+        }
+        const lh = localStorage.getItem('ts_holds');
+        if (lh) {
+          const parsed = JSON.parse(lh);
+          if (Array.isArray(parsed) && parsed.length > 0) localHolds = parsed;
+        }
+        const ltr = localStorage.getItem('ts_transfers');
+        if (ltr) {
+          const parsed = JSON.parse(ltr);
+          if (Array.isArray(parsed) && parsed.length > 0) localTransfers = parsed;
+        }
+      } catch (e) {
+        // Fallback silently
+      }
+    }
+
+    let finalStores = stores.length > 0 ? stores : localStores;
+    let finalProducts = products.length > 0 ? products : localProducts;
+    let finalCustomers = customers.length > 0 ? customers : localCustomers;
+    let finalTransactions = transactions.length > 0 ? transactions : localTransactions;
+    let finalLayaways = layaways.length > 0 ? layaways : localLayaways;
+    let finalHolds = holds.length > 0 ? holds : localHolds;
+    let finalTransfers = transfers.length > 0 ? transfers : localTransfers;
     let finalPO = purchaseOrders;
-    let finalUsers = users.length > 0 ? users : INITIAL_USERS;
+    let finalUsers = users.length > 0 ? users : localUsers;
 
     // Seed empty tables in background for smooth initialization
     if (stores.length === 0) {

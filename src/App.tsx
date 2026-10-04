@@ -368,15 +368,45 @@ export default function App() {
     bootstrapSupabaseData()
       .then((data) => {
         if (!mounted) return;
-        if (data && data.products && data.products.length > 0) {
-          if (data.stores && data.stores.length > 0) setStores(data.stores);
-          setProducts(normalizeProductsThreshold(data.products));
-          setCustomers(data.customers);
-          setTransactions(data.transactions);
-          setLayaways(data.layaways);
-          setHolds(data.holds);
-          setTransfers(data.transfers);
-          if (data.purchaseOrders) setPurchaseOrders(data.purchaseOrders);
+        if (data) {
+          if (data.stores && data.stores.length > 0) {
+            setStores((current) => (current.length > 0 ? current : data.stores));
+          }
+          if (data.products && data.products.length > 0) {
+            setProducts((current) => {
+              // Smart merge: preserve all current products in state / localStorage
+              const productMap = new Map<string, MasterProduct>();
+              current.forEach((p) => productMap.set(p.id, p));
+              data.products.forEach((p) => {
+                if (!productMap.has(p.id)) {
+                  productMap.set(p.id, p);
+                }
+              });
+              const merged = Array.from(productMap.values());
+              try {
+                localStorage.setItem('ts_products', JSON.stringify(merged));
+              } catch (e) {
+                console.warn('LocalStorage save error:', e);
+              }
+              return normalizeProductsThreshold(merged);
+            });
+          }
+          if (data.customers && data.customers.length > 0) {
+            setCustomers((current) => (current.length > 0 ? current : data.customers));
+          }
+          if (data.transactions && data.transactions.length > 0) {
+            setTransactions((current) => (current.length > 0 ? current : data.transactions));
+          }
+          if (data.layaways && data.layaways.length > 0) {
+            setLayaways((current) => (current.length > 0 ? current : data.layaways));
+          }
+          if (data.holds && data.holds.length > 0) {
+            setHolds((current) => (current.length > 0 ? current : data.holds));
+          }
+          if (data.transfers && data.transfers.length > 0) {
+            setTransfers((current) => (current.length > 0 ? current : data.transfers));
+          }
+          if (data.purchaseOrders && data.purchaseOrders.length > 0) setPurchaseOrders(data.purchaseOrders);
           if (data.users && data.users.length > 0) setUsers(ensureAdminUserExists(data.users));
         }
         setIsSupabaseLoaded(true);
@@ -397,6 +427,26 @@ export default function App() {
         if (data.specialOrders && data.specialOrders.length > 0) {
           setSpecialOrders(data.specialOrders);
           localStorage.setItem('ts_special_orders', JSON.stringify(data.specialOrders));
+        }
+        if (data.products && data.products.length > 0) {
+          setProducts((current) => {
+            const productMap = new Map<string, MasterProduct>();
+            // Keep all current user-added products in state and localStorage
+            current.forEach((p) => productMap.set(p.id, p));
+            // Add any remote Firestore products not yet in state
+            data.products.forEach((p) => {
+              if (!productMap.has(p.id)) {
+                productMap.set(p.id, p);
+              }
+            });
+            const merged = Array.from(productMap.values());
+            try {
+              localStorage.setItem('ts_products', JSON.stringify(merged));
+            } catch (e) {
+              console.warn('LocalStorage save error:', e);
+            }
+            return normalizeProductsThreshold(merged);
+          });
         }
         setIsFirebaseLoaded(true);
       })
@@ -804,8 +854,8 @@ export default function App() {
     setTransactions((prev) => [transaction, ...prev]);
 
     // 2. Deduct quantities from products stock for active store
-    setProducts((prevProducts) =>
-      prevProducts.map((p) => {
+    setProducts((prevProducts) => {
+      const updated = prevProducts.map((p) => {
         const containsCartItem = transaction.items.some((item) => item.product.id === p.id);
         if (!containsCartItem) return p;
 
@@ -826,8 +876,15 @@ export default function App() {
         });
 
         return { ...p, variants: updatedVariants };
-      })
-    );
+      });
+
+      try {
+        localStorage.setItem('ts_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save error:', e);
+      }
+      return updated;
+    });
 
     // 3. Update customer loyalty points if customer selected
     if (transaction.customerId) {
@@ -865,8 +922,8 @@ export default function App() {
     returnReason: string = 'Garment Return / Swap'
   ) => {
     if (restock) {
-      setProducts((prev) =>
-        prev.map((p) => {
+      setProducts((prev) => {
+        const updated = prev.map((p) => {
           const updatedVariants = p.variants.map((v) => {
             if (returnedVariantIds.includes(v.id)) {
               const currentStock = v.stockByStore[activeStoreId] || 0;
@@ -881,8 +938,15 @@ export default function App() {
             return v;
           });
           return { ...p, variants: updatedVariants };
-        })
-      );
+        });
+
+        try {
+          localStorage.setItem('ts_products', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('LocalStorage save error:', e);
+        }
+        return updated;
+      });
     }
 
     // Update transaction status and store return log metadata
@@ -906,14 +970,41 @@ export default function App() {
 
   // Add Master Product
   const handleAddMasterProduct = (newProduct: MasterProduct) => {
-    setProducts((prev) => [newProduct, ...prev]);
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === newProduct.id);
+      const updated = exists ? prev.map((p) => (p.id === newProduct.id ? newProduct : p)) : [newProduct, ...prev];
+      try {
+        localStorage.setItem('ts_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save error:', e);
+      }
+      return updated;
+    });
+    saveDocument('products', newProduct).catch((e) =>
+      console.warn('Firestore product save error:', e)
+    );
+    if (isSupabaseLoaded) {
+      saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, newProduct).catch(() => {});
+    }
   };
 
   // Update Master Product
   const handleUpdateMasterProduct = (updatedProduct: MasterProduct) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+      try {
+        localStorage.setItem('ts_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save error:', e);
+      }
+      return updated;
+    });
+    saveDocument('products', updatedProduct).catch((e) =>
+      console.warn('Firestore product update error:', e)
     );
+    if (isSupabaseLoaded) {
+      saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, updatedProduct).catch(() => {});
+    }
   };
 
   // Delete Master Product
@@ -923,15 +1014,25 @@ export default function App() {
       deleteFileFromSupabaseStorage(prodToDelete.image).catch(() => {});
     }
     deleteSupabaseDocument(SUPABASE_TABLES.PRODUCTS, productId).catch(() => {});
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    deleteDocument('products', productId).catch(() => {});
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== productId);
+      try {
+        localStorage.setItem('ts_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save error:', e);
+      }
+      return updated;
+    });
   };
 
   // Update Stock directly
   const handleUpdateVariantStock = (variantId: string, storeId: string, newStock: number) => {
-    setProducts((prev) =>
-      prev.map((p) => ({
-        ...p,
-        variants: p.variants.map((v) => {
+    setProducts((prev) => {
+      const updated = prev.map((p) => {
+        const hasVariant = p.variants.some((v) => v.id === variantId);
+        if (!hasVariant) return p;
+        const updatedVariants = p.variants.map((v) => {
           if (v.id === variantId) {
             return {
               ...v,
@@ -942,9 +1043,18 @@ export default function App() {
             };
           }
           return v;
-        }),
-      }))
-    );
+        });
+        const updatedProduct = { ...p, variants: updatedVariants };
+        saveDocument('products', updatedProduct).catch(() => {});
+        return updatedProduct;
+      });
+      try {
+        localStorage.setItem('ts_products', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save error:', e);
+      }
+      return updated;
+    });
   };
 
   // Add Customer

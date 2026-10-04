@@ -193,9 +193,38 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       }
     }
     if (productsList.length === 0) {
-      productsList = INITIAL_PRODUCTS;
-      for (const p of INITIAL_PRODUCTS) {
+      let initialToSeed = INITIAL_PRODUCTS;
+      if (typeof window !== 'undefined') {
+        const local = localStorage.getItem('ts_products');
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              initialToSeed = parsed;
+            }
+          } catch {}
+        }
+      }
+      productsList = initialToSeed;
+      for (const p of initialToSeed) {
         await saveDocument(COL_PRODUCTS, p);
+      }
+    } else if (typeof window !== 'undefined') {
+      // If Firestore already has products, also preserve any extra products from localStorage
+      const local = localStorage.getItem('ts_products');
+      if (local) {
+        try {
+          const parsed: MasterProduct[] = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const existingIds = new Set(productsList.map(p => p.id));
+            for (const p of parsed) {
+              if (!existingIds.has(p.id)) {
+                productsList.unshift(p);
+                saveDocument(COL_PRODUCTS, p).catch(() => {});
+              }
+            }
+          }
+        } catch {}
       }
     }
     if (customersList.length === 0) {
