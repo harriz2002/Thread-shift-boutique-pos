@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { X, Check, AlertCircle, Barcode, MapPin, Tag, Plus, Minus, ShoppingBag } from 'lucide-react';
-import { MasterProduct, ProductVariant, ClothingSize, StoreLocation } from '../types';
+import { MasterProduct, ProductVariant, ClothingSize, StoreLocation, CartItem } from '../types';
 import { formatCurrency } from '../utils/format';
 
 interface ProductMatrixModalProps {
   product: MasterProduct;
   stores: StoreLocation[];
   activeStoreId: string;
+  cart?: CartItem[];
   onClose: () => void;
   onAddToCart: (product: MasterProduct, variant: ProductVariant, quantity: number) => void;
 }
@@ -15,6 +16,7 @@ export const ProductMatrixModal: React.FC<ProductMatrixModalProps> = ({
   product,
   stores,
   activeStoreId,
+  cart = [],
   onClose,
   onAddToCart,
 }) => {
@@ -97,15 +99,25 @@ export const ProductMatrixModal: React.FC<ProductMatrixModalProps> = ({
     (v) => v.color === selectedColor && v.size === selectedSize
   );
 
+  // Check how many units of this variant are already in the register cart
+  const inCartQty = (cart || []).find(
+    (item) => item.product.id === product.id && item.variant.id === selectedVariant?.id
+  )?.quantity || 0;
+
   const currentStoreStock = selectedVariant
-    ? selectedVariant.stockByStore[activeStoreId] || 0
+    ? Math.max(0, selectedVariant.stockByStore[activeStoreId] || 0)
     : 0;
+
+  const remainingAvailable = Math.max(0, currentStoreStock - inCartQty);
+  const isOutOfStock = currentStoreStock === 0;
+  const isCartFull = !isOutOfStock && remainingAvailable === 0;
 
   const currentStore = stores.find((s) => s.id === activeStoreId);
 
   const handleAdd = () => {
-    if (!selectedVariant) return;
-    onAddToCart(product, selectedVariant, quantity);
+    if (!selectedVariant || remainingAvailable <= 0) return;
+    const qtyToAdd = Math.min(quantity, remainingAvailable);
+    onAddToCart(product, selectedVariant, qtyToAdd);
     onClose();
   };
 
@@ -254,7 +266,14 @@ export const ProductMatrixModal: React.FC<ProductMatrixModalProps> = ({
                         {currentStore?.name}:
                       </span>
                       {currentStoreStock > 0 ? (
-                        <span className="text-emerald-400 font-bold">{currentStoreStock} units available</span>
+                        <div className="flex flex-col">
+                          <span className="text-emerald-400 font-bold">{currentStoreStock} units in store</span>
+                          {inCartQty > 0 && (
+                            <span className="text-[10px] text-amber-300 font-mono">
+                              ({inCartQty} in cart • {remainingAvailable} remaining)
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-rose-400 font-bold flex items-center gap-1">
                           <AlertCircle className="w-3.5 h-3.5" /> Out of stock here
@@ -302,20 +321,30 @@ export const ProductMatrixModal: React.FC<ProductMatrixModalProps> = ({
             {/* Bottom Actions: Quantity & Add Button */}
             <div className="space-y-3 pt-3 border-t border-slate-800">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-300 uppercase">Quantity:</span>
+                <div>
+                  <span className="text-xs font-semibold text-slate-300 uppercase block">Quantity:</span>
+                  {remainingAvailable > 0 && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Max addable: <strong className="text-amber-400">{remainingAvailable}</strong>
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
                   <button
+                    disabled={quantity <= 1 || remainingAvailable <= 0}
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+                    className="p-1 text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 rounded-lg transition-colors"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
                   <span className="w-8 text-center font-bold text-sm text-amber-400 font-mono">
-                    {quantity}
+                    {remainingAvailable <= 0 ? 0 : Math.min(quantity, remainingAvailable)}
                   </span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+                    disabled={quantity >= remainingAvailable || remainingAvailable <= 0}
+                    onClick={() => setQuantity(prev => Math.min(remainingAvailable, prev + 1))}
+                    className="p-1 text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 rounded-lg transition-colors"
+                    title={quantity >= remainingAvailable ? `Only ${remainingAvailable} units available` : 'Add quantity'}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -323,19 +352,21 @@ export const ProductMatrixModal: React.FC<ProductMatrixModalProps> = ({
               </div>
 
               <button
-                disabled={!selectedVariant || currentStoreStock === 0}
+                disabled={!selectedVariant || remainingAvailable === 0}
                 onClick={handleAdd}
                 className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${
-                  !selectedVariant || currentStoreStock === 0
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  !selectedVariant || remainingAvailable === 0
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60'
                     : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 active:scale-98'
                 }`}
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>
-                  {currentStoreStock === 0
+                  {isOutOfStock
                     ? 'Out of Stock in This Store'
-                    : `Add to Register Cart — ${formatCurrency((selectedVariant?.priceOverride || product.basePrice) * quantity)}`}
+                    : isCartFull
+                    ? `All ${currentStoreStock} Available Units in Cart`
+                    : `Add to Register Cart (${Math.min(quantity, remainingAvailable)}) — ${formatCurrency((selectedVariant?.priceOverride || product.basePrice) * Math.min(quantity, remainingAvailable))}`}
                 </span>
               </button>
             </div>

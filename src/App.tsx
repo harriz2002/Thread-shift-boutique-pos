@@ -382,7 +382,7 @@ export default function App() {
         setIsSupabaseLoaded(true);
       })
       .catch((err) => {
-        console.error('Failed to load from Supabase:', err);
+        console.warn('Supabase data load fallback:', err);
         setIsSupabaseLoaded(true);
       });
 
@@ -401,7 +401,7 @@ export default function App() {
         setIsFirebaseLoaded(true);
       })
       .catch((err) => {
-        console.error('Failed to load from Firebase Firestore:', err);
+        console.warn('Firebase Firestore fallback:', err);
         setIsFirebaseLoaded(true);
       });
 
@@ -428,86 +428,86 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('ts_stores', JSON.stringify(stores));
     if (isSupabaseLoaded) {
-      stores.forEach((s) => saveSupabaseDocument(SUPABASE_TABLES.STORES, s));
+      stores.forEach((s) => saveSupabaseDocument(SUPABASE_TABLES.STORES, s).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      stores.forEach((s) => saveDocument('stores', s));
+      stores.forEach((s) => saveDocument('stores', s).catch(() => {}));
     }
   }, [stores, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_products', JSON.stringify(products));
     if (isSupabaseLoaded) {
-      products.forEach((p) => saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, p));
+      products.forEach((p) => saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, p).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      products.forEach((p) => saveDocument('products', p));
+      products.forEach((p) => saveDocument('products', p).catch(() => {}));
     }
   }, [products, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_customers', JSON.stringify(customers));
     if (isSupabaseLoaded) {
-      customers.forEach((c) => saveSupabaseDocument(SUPABASE_TABLES.CUSTOMERS, c));
+      customers.forEach((c) => saveSupabaseDocument(SUPABASE_TABLES.CUSTOMERS, c).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      customers.forEach((c) => saveDocument('customers', c));
+      customers.forEach((c) => saveDocument('customers', c).catch(() => {}));
     }
   }, [customers, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_transactions', JSON.stringify(transactions));
     if (isSupabaseLoaded) {
-      transactions.forEach((t) => saveSupabaseDocument(SUPABASE_TABLES.TRANSACTIONS, t));
+      transactions.forEach((t) => saveSupabaseDocument(SUPABASE_TABLES.TRANSACTIONS, t).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      transactions.forEach((t) => saveDocument('transactions', t));
+      transactions.forEach((t) => saveDocument('transactions', t).catch(() => {}));
     }
   }, [transactions, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_holds', JSON.stringify(holds));
     if (isSupabaseLoaded) {
-      holds.forEach((h) => saveSupabaseDocument(SUPABASE_TABLES.HOLDS, h));
+      holds.forEach((h) => saveSupabaseDocument(SUPABASE_TABLES.HOLDS, h).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      holds.forEach((h) => saveDocument('holds', h));
+      holds.forEach((h) => saveDocument('holds', h).catch(() => {}));
     }
   }, [holds, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_layaways', JSON.stringify(layaways));
     if (isSupabaseLoaded) {
-      layaways.forEach((l) => saveSupabaseDocument(SUPABASE_TABLES.LAYAWAYS, l));
+      layaways.forEach((l) => saveSupabaseDocument(SUPABASE_TABLES.LAYAWAYS, l).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      layaways.forEach((l) => saveDocument('layaways', l));
+      layaways.forEach((l) => saveDocument('layaways', l).catch(() => {}));
     }
   }, [layaways, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_transfers', JSON.stringify(transfers));
     if (isSupabaseLoaded) {
-      transfers.forEach((tr) => saveSupabaseDocument(SUPABASE_TABLES.TRANSFERS, tr));
+      transfers.forEach((tr) => saveSupabaseDocument(SUPABASE_TABLES.TRANSFERS, tr).catch(() => {}));
     }
     if (isFirebaseLoaded) {
-      transfers.forEach((tr) => saveDocument('transfers', tr));
+      transfers.forEach((tr) => saveDocument('transfers', tr).catch(() => {}));
     }
   }, [transfers, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     if (isSupabaseLoaded && purchaseOrders.length > 0) {
-      purchaseOrders.forEach((po) => saveSupabaseDocument(SUPABASE_TABLES.PURCHASE_ORDERS, po));
+      purchaseOrders.forEach((po) => saveSupabaseDocument(SUPABASE_TABLES.PURCHASE_ORDERS, po).catch(() => {}));
     }
     if (isFirebaseLoaded && purchaseOrders.length > 0) {
-      purchaseOrders.forEach((po) => saveDocument('purchase_orders', po));
+      purchaseOrders.forEach((po) => saveDocument('purchase_orders', po).catch(() => {}));
     }
   }, [purchaseOrders, isSupabaseLoaded, isFirebaseLoaded]);
 
   useEffect(() => {
     localStorage.setItem('ts_users', JSON.stringify(users));
     if (isSupabaseLoaded) {
-      users.forEach((u) => saveSupabaseDocument(SUPABASE_TABLES.USERS, u));
+      users.forEach((u) => saveSupabaseDocument(SUPABASE_TABLES.USERS, u).catch(() => {}));
     }
   }, [users, isSupabaseLoaded]);
 
@@ -535,24 +535,85 @@ export default function App() {
     return count + (hasLow ? 1 : 0);
   }, 0);
 
-  // Cart operations
+  // Stock notification toast state
+  const [stockToast, setStockToast] = useState<{ message: string; type?: 'error' | 'warning' | 'info' } | null>(null);
+
+  const showStockToast = (message: string, type: 'error' | 'warning' | 'info' = 'warning') => {
+    setStockToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (!stockToast) return;
+    const timer = setTimeout(() => {
+      setStockToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [stockToast]);
+
+  // Cart operations with strict available stock validation
   const handleAddToCart = (product: MasterProduct, variant: ProductVariant, quantity: number) => {
+    // Determine the latest available stock for this variant in the active store
+    const liveProduct = products.find((p) => p.id === product.id) || product;
+    const liveVariant = liveProduct.variants.find((v) => v.id === variant.id) || variant;
+    const availableStock = Math.max(0, liveVariant.stockByStore[activeStoreId] ?? 0);
+    const storeObj = stores.find((s) => s.id === activeStoreId);
+    const storeName = storeObj?.name || 'this store';
+
+    if (availableStock <= 0) {
+      showStockToast(
+        `"${product.title} (${variant.color}, Sz ${variant.size})" is currently out of stock at ${storeName}.`,
+        'error'
+      );
+      return;
+    }
+
     setCart((prev) => {
       const existingIdx = prev.findIndex(
         (item) => item.product.id === product.id && item.variant.id === variant.id
       );
 
       if (existingIdx > -1) {
+        const currentQty = prev[existingIdx].quantity;
+        const maxAddable = Math.max(0, availableStock - currentQty);
+
+        if (maxAddable <= 0) {
+          showStockToast(
+            `Cannot add more items: You already have all ${availableStock} available units of "${product.title} (${variant.color}, Sz ${variant.size})" in your cart.`,
+            'warning'
+          );
+          return prev;
+        }
+
+        const actualAdd = Math.min(quantity, maxAddable);
+        if (actualAdd < quantity) {
+          showStockToast(
+            `Only ${maxAddable} more unit(s) available in stock. Added ${actualAdd} to cart (total ${currentQty + actualAdd}).`,
+            'info'
+          );
+        }
+
         const next = [...prev];
-        next[existingIdx].quantity += quantity;
+        next[existingIdx] = {
+          ...next[existingIdx],
+          quantity: currentQty + actualAdd,
+        };
         return next;
+      }
+
+      // Not in cart yet
+      const actualQty = Math.min(quantity, availableStock);
+      if (actualQty < quantity) {
+        showStockToast(
+          `Only ${availableStock} unit(s) available in stock for "${product.title}". Added ${actualQty} to cart.`,
+          'info'
+        );
       }
 
       const newItem: CartItem = {
         cartItemId: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         product,
         variant,
-        quantity,
+        quantity: actualQty,
         storeId: activeStoreId,
         unitPrice: variant.priceOverride || product.basePrice,
         discountAmount: 0,
@@ -567,9 +628,27 @@ export default function App() {
       handleRemoveCartItem(cartItemId);
       return;
     }
-    setCart((prev) =>
-      prev.map((item) => (item.cartItemId === cartItemId ? { ...item, quantity } : item))
-    );
+
+    setCart((prev) => {
+      const item = prev.find((i) => i.cartItemId === cartItemId);
+      if (!item) return prev;
+
+      const liveProduct = products.find((p) => p.id === item.product.id) || item.product;
+      const liveVariant = liveProduct.variants.find((v) => v.id === item.variant.id) || item.variant;
+      const availableStock = Math.max(0, liveVariant.stockByStore[activeStoreId] ?? 0);
+
+      if (quantity > availableStock) {
+        showStockToast(
+          `Cannot exceed available stock (${availableStock} units available for "${item.product.title}").`,
+          'warning'
+        );
+        return prev.map((it) =>
+          it.cartItemId === cartItemId ? { ...it, quantity: availableStock } : it
+        );
+      }
+
+      return prev.map((it) => (it.cartItemId === cartItemId ? { ...it, quantity } : it));
+    });
   };
 
   const handleUpdateCartItemPrice = (cartItemId: string, newUnitPrice: number) => {
@@ -841,9 +920,9 @@ export default function App() {
   const handleDeleteMasterProduct = (productId: string) => {
     const prodToDelete = products.find((p) => p.id === productId);
     if (prodToDelete?.image) {
-      deleteFileFromSupabaseStorage(prodToDelete.image);
+      deleteFileFromSupabaseStorage(prodToDelete.image).catch(() => {});
     }
-    deleteSupabaseDocument(SUPABASE_TABLES.PRODUCTS, productId);
+    deleteSupabaseDocument(SUPABASE_TABLES.PRODUCTS, productId).catch(() => {});
     setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
@@ -1167,6 +1246,7 @@ export default function App() {
           product={selectedMatrixProduct}
           stores={stores}
           activeStoreId={activeStoreId}
+          cart={cart}
           onClose={() => setSelectedMatrixProduct(null)}
           onAddToCart={handleAddToCart}
         />
@@ -1287,6 +1367,34 @@ export default function App() {
             localStorage.setItem('ts_current_user', JSON.stringify(u));
           }}
         />
+      )}
+
+      {/* Floating Stock Notification Toast */}
+      {stockToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-md w-full px-4">
+          <div
+            className={`p-3.5 rounded-xl shadow-2xl border flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md ${
+              stockToast.type === 'error'
+                ? 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+                : stockToast.type === 'info'
+                ? 'bg-amber-950/90 border-amber-500/50 text-amber-200'
+                : 'bg-amber-950/90 border-amber-500/50 text-amber-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-base shrink-0">
+                {stockToast.type === 'error' ? '🚫' : '⚠️'}
+              </span>
+              <p className="leading-snug">{stockToast.message}</p>
+            </div>
+            <button
+              onClick={() => setStockToast(null)}
+              className="text-slate-400 hover:text-slate-100 p-1 rounded-lg hover:bg-slate-800 shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

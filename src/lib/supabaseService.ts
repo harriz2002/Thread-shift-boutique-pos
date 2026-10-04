@@ -34,16 +34,24 @@ export const SUPABASE_TABLES = {
   USERS: 'user_accounts',
 };
 
+// Connection availability tracking
+let isSupabaseOnline: boolean | null = null;
+
 /**
  * Generic load function from Supabase with fallback
  */
 export async function loadSupabaseTable<T extends { id: string }>(tableName: string): Promise<T[]> {
+  if (isSupabaseOnline === false) return [];
+
   try {
     const { data, error } = await supabase.from(tableName).select('*');
     if (error) {
-      console.warn(`Supabase query warning for table ${tableName}:`, error.message);
+      if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        isSupabaseOnline = false;
+      }
       return [];
     }
+    isSupabaseOnline = true;
     if (!data || data.length === 0) return [];
 
     return data.map((row: any) => {
@@ -52,8 +60,10 @@ export async function loadSupabaseTable<T extends { id: string }>(tableName: str
       }
       return row as T;
     });
-  } catch (err) {
-    console.error(`Failed to load ${tableName} from Supabase:`, err);
+  } catch (err: any) {
+    if (err?.message?.includes('fetch') || err?.message?.includes('network') || String(err).includes('fetch')) {
+      isSupabaseOnline = false;
+    }
     return [];
   }
 }
@@ -62,7 +72,7 @@ export async function loadSupabaseTable<T extends { id: string }>(tableName: str
  * Generic Save / Upsert function to Supabase
  */
 export async function saveSupabaseDocument<T extends { id: string }>(tableName: string, item: T): Promise<void> {
-  if (!item || !item.id) return;
+  if (!item || !item.id || isSupabaseOnline === false) return;
 
   try {
     // Upsert with both flat properties and payload for dual-schema compatibility
@@ -82,11 +92,17 @@ export async function saveSupabaseDocument<T extends { id: string }>(tableName: 
 
     const { error } = await supabase.from(tableName).upsert(record, { onConflict: 'id' });
     if (error) {
+      if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        isSupabaseOnline = false;
+        return;
+      }
       // Retry with minimal payload if error occurs
       await supabase.from(tableName).upsert({ id: String(item.id), payload: item }, { onConflict: 'id' });
     }
-  } catch (err) {
-    console.warn(`Local save fallback for ${tableName}:`, err);
+  } catch (err: any) {
+    if (err?.message?.includes('fetch') || String(err).includes('fetch')) {
+      isSupabaseOnline = false;
+    }
   }
 }
 
@@ -94,11 +110,11 @@ export async function saveSupabaseDocument<T extends { id: string }>(tableName: 
  * Generic Delete function from Supabase
  */
 export async function deleteSupabaseDocument(tableName: string, id: string): Promise<void> {
-  if (!id) return;
+  if (!id || isSupabaseOnline === false) return;
   try {
     await supabase.from(tableName).delete().eq('id', id);
-  } catch (err) {
-    console.error(`Failed deleting ${id} from ${tableName} in Supabase:`, err);
+  } catch {
+    // Quiet delete fallback
   }
 }
 
@@ -107,12 +123,15 @@ export async function deleteSupabaseDocument(tableName: string, id: string): Pro
  */
 export async function checkSupabaseConnection(): Promise<{ connected: boolean; message: string }> {
   try {
-    const { data, error } = await supabase.from(SUPABASE_TABLES.STORES).select('id').limit(1);
+    const { error } = await supabase.from(SUPABASE_TABLES.STORES).select('id').limit(1);
     if (error && !error.message.includes('relation') && !error.message.includes('does not exist')) {
+      isSupabaseOnline = false;
       return { connected: false, message: error.message };
     }
+    isSupabaseOnline = true;
     return { connected: true, message: 'Connected to Supabase successfully' };
   } catch (err: any) {
+    isSupabaseOnline = false;
     return { connected: false, message: err?.message || 'Network error connecting to Supabase' };
   }
 }
@@ -190,7 +209,7 @@ export async function bootstrapSupabaseData(): Promise<{
       users: finalUsers
     };
   } catch (err) {
-    console.error('Error during Supabase data initialization:', err);
+    console.warn('Supabase data bootstrap bypassed to local/Firestore fallback:', err);
     return {
       stores: INITIAL_STORES,
       products: INITIAL_PRODUCTS,

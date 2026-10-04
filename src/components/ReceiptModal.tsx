@@ -99,7 +99,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <style>
                   @page { size: 80mm auto; margin: 0; }
                   body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; padding: 0; margin: 0; background: #ffffff; color: #000000; width: 80mm; }
-                  .printable-receipt { width: 80mm; max-width: 80mm; margin: 0 auto; box-sizing: border-box; padding: 4mm 2mm; }
+                  .printable-receipt { width: 72mm; max-width: 72mm; margin-left: 4mm; margin-right: auto; margin-top: 2mm; margin-bottom: 2mm; box-sizing: border-box; padding: 3mm 3mm; }
                   .text-center { text-align: center; }
                   .flex { display: flex; }
                   .justify-between { justify-content: space-between; }
@@ -164,15 +164,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           .printable-receipt, .printable-receipt * {
             visibility: visible !important;
           }
-          /* Format the receipt to exact standard 80mm paper dimensions */
+          /* Format the receipt with a clear left margin for 80mm paper / standard print */
           .printable-receipt {
             position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 80mm !important;
-            max-width: 80mm !important;
+            left: 4mm !important;
+            top: 2mm !important;
+            width: 72mm !important;
+            max-width: 72mm !important;
             box-sizing: border-box !important;
-            padding: 4mm 2mm !important;
+            padding: 3mm 3mm !important;
             margin: 0 !important;
             border: none !important;
             border-radius: 0 !important;
@@ -204,8 +204,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         </div>
 
         {/* Printable Thermal Receipt Card */}
-        <div className="p-6">
-          <div className="bg-white text-slate-950 font-mono text-xs p-6 rounded-xl shadow-lg border border-slate-200 printable-receipt space-y-4">
+        <div className="p-4 sm:p-6">
+          <div className="bg-white text-slate-950 font-mono text-xs px-4 py-5 rounded-xl shadow-lg border border-slate-200 printable-receipt space-y-4">
             
             {/* Store Header */}
             <div className="flex items-start justify-between pb-3 border-b border-dashed border-slate-300 gap-2">
@@ -329,38 +329,29 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               ))}
             </div>
 
-            {/* Loyalty points info */}
-            {transaction.loyaltyPointsEarned > 0 && (
-              <div className="bg-amber-50 p-2 rounded text-center text-[10px] text-amber-900 border border-amber-200">
-                🎁 Earned <strong>+{transaction.loyaltyPointsEarned} Loyalty Points</strong> on this visit!
-              </div>
-            )}
 
-            {/* Highly Visible QR Code for Camera Scanning & Official Verification */}
+            {/* Compact, Scan-Ready QR Code for Camera Scanning & Official Verification */}
             {systemSettings?.showReceiptBarcode !== false && (
               <div className="pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
                 <div 
-                  className="inline-flex flex-col items-center bg-white p-3.5 rounded-2xl border-2 border-slate-900 shadow-md cursor-pointer hover:bg-slate-50 transition-all group max-w-full"
+                  className="inline-flex flex-col items-center bg-white p-2 rounded-xl border border-slate-300 hover:border-slate-800 shadow-sm cursor-pointer hover:bg-slate-50 transition-all group max-w-full"
                   onClick={() => setIsQrScannerOpen(true)}
                   title="Click to open Receipt QR Scanner & Verifier Tool"
                 >
-                  <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
+                  <div className="p-1.5 bg-white rounded-lg border border-slate-200 shadow-inner">
                     <QRCodeSVG
                       value={qrDataText}
-                      size={175}
-                      level="Q"
-                      includeMargin={true}
+                      size={90}
+                      level="M"
+                      includeMargin={false}
                       fgColor="#000000"
                       bgColor="#FFFFFF"
                     />
                   </div>
-                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900 group-hover:text-emerald-700">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 inline shrink-0" />
+                  <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-900 group-hover:text-emerald-700">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline shrink-0" />
                     <span>SCAN TO VERIFY RECEIPT</span>
                   </div>
-                  <span className="text-[8.5px] text-slate-500 font-mono mt-0.5">
-                    Click QR code to test camera scanner
-                  </span>
                 </div>
               </div>
             )}

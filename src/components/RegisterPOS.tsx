@@ -223,68 +223,103 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
               </p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div
-                key={item.cartItemId}
-                className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 flex flex-col space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  {/* Thumbnail */}
-                  <img
-                    src={item.product.image}
-                    alt={item.product.title}
-                    className="w-12 h-12 object-cover rounded-lg bg-slate-900 border border-slate-800 shrink-0"
-                  />
+            cart.map((item) => {
+              // Find the live stock for this product variant in the active store
+              const liveProduct = products.find((p) => p.id === item.product.id);
+              const liveVariant = liveProduct?.variants.find((v) => v.id === item.variant.id) || item.variant;
+              const currentStock = Math.max(0, liveVariant.stockByStore[activeStoreId] ?? 0);
+              const isMaxStockReached = item.quantity >= currentStock;
+              const isOverStock = item.quantity > currentStock;
 
-                  {/* Details */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-slate-100 truncate">{item.product.title}</h4>
-                    
-                    {/* Variant Badge */}
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                      <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded border border-amber-500/30">
-                        Size {item.variant.size}
-                      </span>
-                      <span className="text-slate-400 font-medium truncate">{item.variant.color}</span>
-                      <span className="text-slate-600 font-mono">({item.variant.sku})</span>
+              return (
+                <div
+                  key={item.cartItemId}
+                  className={`border rounded-xl p-3 flex flex-col space-y-2 text-xs transition-colors ${
+                    isOverStock
+                      ? 'bg-rose-950/20 border-rose-800/60'
+                      : 'bg-slate-950 border-slate-800/80'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Thumbnail */}
+                    <img
+                      src={item.product.image}
+                      alt={item.product.title}
+                      className="w-12 h-12 object-cover rounded-lg bg-slate-900 border border-slate-800 shrink-0"
+                    />
+
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-slate-100 truncate">{item.product.title}</h4>
+                      
+                      {/* Variant Badge */}
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
+                        <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded border border-amber-500/30">
+                          Size {item.variant.size}
+                        </span>
+                        <span className="text-slate-400 font-medium truncate">{item.variant.color}</span>
+                        <span className="text-slate-600 font-mono">({item.variant.sku})</span>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+                        <span className="text-slate-300">
+                          {formatCurrency(item.unitPrice)} x {item.quantity} ={' '}
+                          <strong className="text-amber-400">
+                            {formatCurrency(item.unitPrice * item.quantity)}
+                          </strong>
+                        </span>
+                      </div>
+
+                      {/* Store stock notice */}
+                      {isOverStock ? (
+                        <div className="text-[10px] text-rose-400 font-bold flex items-center gap-1 mt-0.5">
+                          <span>⚠️ Exceeds stock ({currentStock} available in store)</span>
+                        </div>
+                      ) : (
+                        <div className="text-[9.5px] text-slate-500 font-mono mt-0.5">
+                          Store stock: <strong className="text-slate-400">{currentStock} available</strong>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="text-[11px] font-mono text-slate-300 mt-1">
-                      {formatCurrency(item.unitPrice)} x {item.quantity} ={' '}
-                      <strong className="text-amber-400">
-                        {formatCurrency(item.unitPrice * item.quantity)}
-                      </strong>
+                    {/* Quantity Actions & Delete */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800 p-1">
+                        <button
+                          onClick={() => onUpdateCartItemQty(item.cartItemId, item.quantity - 1)}
+                          className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-6 text-center font-bold font-mono text-xs text-amber-400">
+                          {item.quantity}
+                        </span>
+                        <button
+                          disabled={isMaxStockReached}
+                          onClick={() => onUpdateCartItemQty(item.cartItemId, item.quantity + 1)}
+                          className={`p-1 rounded transition-colors ${
+                            isMaxStockReached
+                              ? 'text-slate-600 opacity-40 cursor-not-allowed'
+                              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                          }`}
+                          title={
+                            isMaxStockReached
+                              ? `Max store stock reached (${currentStock} available)`
+                              : 'Increase quantity'
+                          }
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => onRemoveCartItem(item.cartItemId)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Quantity Actions & Delete */}
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800 p-1">
-                      <button
-                        onClick={() => onUpdateCartItemQty(item.cartItemId, item.quantity - 1)}
-                        className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-6 text-center font-bold font-mono text-xs text-amber-400">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => onUpdateCartItemQty(item.cartItemId, item.quantity + 1)}
-                        className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => onRemoveCartItem(item.cartItemId)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
 
                 {/* Bargained Unit Price Input Bar & Live Profit Calculation */}
                 <div className="pt-2 border-t border-slate-800/80 space-y-1.5 bg-slate-900/60 p-2 rounded-lg">
@@ -346,7 +381,8 @@ export const RegisterPOS: React.FC<RegisterPOSProps> = ({
                   })()}
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
 

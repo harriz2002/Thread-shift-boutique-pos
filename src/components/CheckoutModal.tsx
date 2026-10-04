@@ -575,21 +575,66 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             </div>
 
+            {/* Stock Validation Error Warning */}
+            {(() => {
+              const stockViolations = cart.filter(
+                (item) => item.quantity > Math.max(0, item.variant.stockByStore[activeStoreId] ?? 0)
+              );
+
+              if (stockViolations.length === 0) return null;
+
+              return (
+                <div className="p-3.5 bg-rose-950/40 border border-rose-800/80 rounded-xl text-rose-300 text-xs space-y-1.5 shadow-inner">
+                  <span className="font-extrabold flex items-center gap-1.5 text-rose-200">
+                    ⚠️ Cannot Checkout: Stock Exceeded
+                  </span>
+                  <p className="text-[11px] text-rose-300/90 leading-tight">
+                    The requested quantity exceeds available stock in this store:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] font-mono">
+                    {stockViolations.map((it) => (
+                      <li key={it.cartItemId}>
+                        <strong>{it.product.title}</strong> ({it.variant.color}, Sz {it.variant.size}): {it.quantity} in cart (only {Math.max(0, it.variant.stockByStore[activeStoreId] ?? 0)} available)
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] text-rose-400 font-sans italic">
+                    Please reduce item quantity in the cart before finalizing this transaction.
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* Complete Sale Button */}
-            <button
-              disabled={isProcessing}
-              onClick={handleProcessCheckout}
-              className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 active:scale-98 cursor-pointer"
-            >
-              {isProcessing ? (
-                <span className="animate-pulse">Processing Sale...</span>
-              ) : (
-                <>
-                  <span>Complete Sale — {formatCurrency(grandTotal)}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+            {(() => {
+              const stockViolations = cart.filter(
+                (item) => item.quantity > Math.max(0, item.variant.stockByStore[activeStoreId] ?? 0)
+              );
+              const hasStockViolation = stockViolations.length > 0;
+
+              return (
+                <button
+                  disabled={isProcessing || hasStockViolation}
+                  onClick={handleProcessCheckout}
+                  className={`w-full py-4 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-lg active:scale-98 cursor-pointer ${
+                    hasStockViolation
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60 shadow-none'
+                      : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
+                  }`}
+                >
+                  {isProcessing ? (
+                    <span className="animate-pulse">Processing Sale...</span>
+                  ) : hasStockViolation ? (
+                    <span>Insufficient Stock in Store — Adjust Cart</span>
+                  ) : (
+                    <>
+                      <span>Complete Sale — {formatCurrency(grandTotal)}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              );
+            })()}
           </div>
 
         </div>

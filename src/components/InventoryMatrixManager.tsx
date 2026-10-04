@@ -180,7 +180,7 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  // Handle Image File Upload to Supabase Storage
+  // Handle Image File Upload
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditMode = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -190,30 +190,23 @@ export const InventoryMatrixManager: React.FC<InventoryMatrixManagerProps> = ({
       const itemId = isEditMode && editingProduct ? editingProduct.id : `prod-${Date.now()}`;
       const { signedUrl } = await uploadFileToSupabaseStorage(file, 'products', itemId);
       
-      const imageUrl = signedUrl || URL.createObjectURL(file);
-      if (isEditMode && editingProduct) {
-        if (editingProduct.image && !editingProduct.image.startsWith('http')) {
-          deleteFileFromSupabaseStorage(editingProduct.image);
+      const imageUrl = signedUrl;
+      if (imageUrl) {
+        if (isEditMode && editingProduct) {
+          if (editingProduct.image && !editingProduct.image.startsWith('http') && !editingProduct.image.startsWith('data:')) {
+            deleteFileFromSupabaseStorage(editingProduct.image).catch(() => {});
+          }
+          setEditingProduct({ ...editingProduct, image: imageUrl });
+        } else {
+          setNewImage(imageUrl);
         }
-        setEditingProduct({ ...editingProduct, image: imageUrl });
-      } else {
-        setNewImage(imageUrl);
       }
     } catch (err) {
-      console.error('Error uploading photo to Supabase storage:', err);
-      // Fallback to base64 if storage error
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        if (isEditMode && editingProduct) {
-          setEditingProduct({ ...editingProduct, image: base64String });
-        } else {
-          setNewImage(base64String);
-        }
-      };
-      reader.readAsDataURL(file);
+      console.warn('Photo upload fallback handled:', err);
     } finally {
       setIsUploadingImage(false);
+      // Reset input value so re-selecting same file triggers change
+      e.target.value = '';
     }
   };
 

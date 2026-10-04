@@ -698,14 +698,14 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
 
               {formData.showReceiptBarcode && (
                 <div className="pt-2 border-t border-dashed border-slate-400 flex flex-col items-center justify-center text-center">
-                  <div className="p-2 bg-white rounded-xl border-2 border-slate-900 shadow-md flex flex-col items-center">
+                  <div className="p-1.5 bg-white rounded-xl border border-slate-900 shadow-sm flex flex-col items-center">
                     <QRCodeSVG
                       value={`Receipt Preview - ${formData.businessName}`}
-                      size={140}
-                      level="Q"
-                      includeMargin={true}
+                      size={90}
+                      level="M"
+                      includeMargin={false}
                     />
-                    <span className="text-[9px] font-black text-slate-900 uppercase mt-1">SCAN TO VERIFY</span>
+                    <span className="text-[8.5px] font-black text-slate-900 uppercase mt-1">SCAN TO VERIFY</span>
                   </div>
                 </div>
               )}
