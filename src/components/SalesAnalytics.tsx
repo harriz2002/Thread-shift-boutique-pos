@@ -946,22 +946,22 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
   const renderStockForecastSection = (isDedicatedTab: boolean = false) => {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-6 shadow-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-5 space-y-5 sm:space-y-6 shadow-xl w-full min-w-0 max-w-full overflow-hidden">
         {/* Header & Controls Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-amber-500/20 to-rose-500/20 text-amber-400 rounded-xl border border-amber-500/30">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4 w-full min-w-0">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-gradient-to-br from-amber-500/20 to-rose-500/20 text-amber-400 rounded-xl border border-amber-500/30 shrink-0 mt-0.5 sm:mt-0">
                 <TrendingUp className="w-5 h-5 text-amber-400" />
               </div>
-              <div>
-                <h3 className="font-extrabold text-base sm:text-lg text-slate-100 flex items-center gap-2">
+              <div className="min-w-0">
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-100 flex items-center gap-2 flex-wrap">
                   <span>30-Day Potential Stock Needs Forecast</span>
-                  <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/20 shrink-0 whitespace-nowrap">
                     Predictive Run-Rate
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 break-words mt-0.5">
                   Forecasting consumer demand & stock replenishment needs based on {forecastAnalysis.observationDays} days of sales transaction velocity
                 </p>
               </div>
@@ -969,14 +969,14 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
           </div>
 
           {/* Controls: Store, Category, View Mode & CSV Export */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             {/* Store Location Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
-              <Store className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs shrink-0 max-w-full">
+              <Store className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <select
                 value={forecastStoreFilter}
                 onChange={(e) => setForecastStoreFilter(e.target.value)}
-                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer"
+                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer max-w-[140px] sm:max-w-none truncate"
               >
                 <option value="all">All Store Branches</option>
                 {stores.map((s) => (
@@ -986,12 +986,12 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </div>
 
             {/* Category Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs">
-              <Filter className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-xl border border-slate-800 text-xs shrink-0 max-w-full">
+              <Filter className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <select
                 value={forecastCategoryFilter}
                 onChange={(e) => setForecastCategoryFilter(e.target.value)}
-                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer"
+                className="bg-transparent text-slate-200 font-semibold outline-none cursor-pointer max-w-[130px] sm:max-w-none truncate"
               >
                 <option value="all">All Categories</option>
                 {Array.from(new Set((products || []).map((p) => p.category))).map((cat) => (
@@ -1001,11 +1001,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </div>
 
             {/* View Mode Toggle: Bar vs Timeline */}
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
               <button
                 type="button"
                 onClick={() => setForecastViewMode('comparison')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   forecastViewMode === 'comparison'
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -1013,12 +1013,13 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
                 title="Garment Stock vs. 30-Day Demand Bar Chart"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                <span>Garment Needs</span>
+                <span className="hidden sm:inline">Garment Needs</span>
+                <span className="sm:hidden">Needs</span>
               </button>
               <button
                 type="button"
                 onClick={() => setForecastViewMode('timeline')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                   forecastViewMode === 'timeline'
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -1026,7 +1027,8 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
                 title="30-Day Inventory Depletion Curve"
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>Depletion Curve</span>
+                <span className="hidden sm:inline">Depletion Curve</span>
+                <span className="sm:hidden">Timeline</span>
               </button>
             </div>
 
@@ -1034,7 +1036,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             <button
               type="button"
               onClick={exportStockForecastCSV}
-              className="bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
               title="Download 30-Day Stock Forecast CSV"
             >
               <Download className="w-3.5 h-3.5 text-amber-400" />
@@ -1044,73 +1046,73 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
 
         {/* 5 Forecast KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">30D Projected Demand</span>
-            <div className="text-xl font-black font-mono text-amber-400">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5 w-full min-w-0">
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 sm:p-3.5 space-y-1 shadow-inner min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block truncate">30D Demand</span>
+            <div className="text-lg sm:text-xl font-black font-mono text-amber-400 truncate">
               {forecastAnalysis.totalProjectedDemand} <span className="text-xs font-normal text-slate-400">Pcs</span>
             </div>
-            <p className="text-[10px] text-slate-500">Consumer demand forecast</p>
+            <p className="text-[10px] text-slate-500 truncate">Forecasted demand</p>
           </div>
 
-          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Current Stock On-Hand</span>
-            <div className="text-xl font-black font-mono text-sky-400">
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 sm:p-3.5 space-y-1 shadow-inner min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block truncate">Current Stock</span>
+            <div className="text-lg sm:text-xl font-black font-mono text-sky-400 truncate">
               {forecastAnalysis.totalOnHand} <span className="text-xs font-normal text-slate-400">Pcs</span>
             </div>
-            <p className="text-[10px] text-slate-500">Available across locations</p>
+            <p className="text-[10px] text-slate-500 truncate">On-hand inventory</p>
           </div>
 
-          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Stock Needed</span>
-            <div className={`text-xl font-black font-mono ${forecastAnalysis.totalUnitsNeeded > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 sm:p-3.5 space-y-1 shadow-inner min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block truncate">Stock Needed</span>
+            <div className={`text-lg sm:text-xl font-black font-mono truncate ${forecastAnalysis.totalUnitsNeeded > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
               {forecastAnalysis.totalUnitsNeeded > 0 ? `+${forecastAnalysis.totalUnitsNeeded}` : '0'}{' '}
               <span className="text-xs font-normal text-slate-400">Pcs</span>
             </div>
-            <p className="text-[10px] text-slate-500">Deficit to order for 30 days</p>
+            <p className="text-[10px] text-slate-500 truncate">Units to reorder</p>
           </div>
 
-          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Est. Reorder Capital</span>
-            <div className="text-xl font-black font-mono text-emerald-400 truncate">
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 sm:p-3.5 space-y-1 shadow-inner min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block truncate">Reorder Cost</span>
+            <div className="text-lg sm:text-xl font-black font-mono text-emerald-400 truncate">
               {formatCurrency(forecastAnalysis.totalReorderCapital)}
             </div>
-            <p className="text-[10px] text-slate-500">Procurement wholesale cost</p>
+            <p className="text-[10px] text-slate-500 truncate">Wholesale capital</p>
           </div>
 
-          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 space-y-1 shadow-inner col-span-2 sm:col-span-1">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Depletion Risk</span>
-            <div className={`text-xl font-black font-mono ${forecastAnalysis.criticalItemsCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3 sm:p-3.5 space-y-1 shadow-inner col-span-2 sm:col-span-1 min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block truncate">Depletion Risk</span>
+            <div className={`text-lg sm:text-xl font-black font-mono truncate ${forecastAnalysis.criticalItemsCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
               {forecastAnalysis.criticalItemsCount} <span className="text-xs font-normal text-slate-400">Styles</span>
             </div>
-            <p className="text-[10px] text-slate-500">Running low in &lt;18 days</p>
+            <p className="text-[10px] text-slate-500 truncate">Low stock &lt;18 days</p>
           </div>
         </div>
 
         {/* The Visual Chart */}
-        <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 sm:p-5 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5">
-            <div>
+        <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 sm:p-5 space-y-3 w-full min-w-0 max-w-full overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5 w-full min-w-0">
+            <div className="min-w-0">
               <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
                 {forecastViewMode === 'comparison' ? (
                   <>
-                    <BarChart3 className="w-4 h-4 text-sky-400" />
+                    <BarChart3 className="w-4 h-4 text-sky-400 shrink-0" />
                     <span>Garment Inventory vs. 30-Day Demand & Reorder Deficit</span>
                   </>
                 ) : (
                   <>
-                    <TrendingUp className="w-4 h-4 text-amber-400" />
+                    <TrendingUp className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>30-Day Inventory Depletion & Cumulative Demand Trajectory</span>
                   </>
                 )}
               </h4>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-400 mt-0.5">
                 {forecastViewMode === 'comparison'
                   ? 'Comparing Available Stock against 30-Day Projected Demand and Net Reorder Units Needed'
                   : 'Weekly projected depletion of available stock as consumer demand accumulates through Day 30'}
               </p>
             </div>
-            <div className="flex items-center gap-3 text-[11px] font-mono">
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono shrink-0">
               <span className="inline-flex items-center gap-1.5 text-sky-400">
                 <span className="w-2.5 h-2.5 rounded-sm bg-sky-500" /> Current Stock
               </span>
@@ -1123,9 +1125,9 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </div>
           </div>
 
-          <div className="h-72 w-full text-xs font-mono">
+          <div className="h-64 sm:h-72 w-full min-w-0 overflow-hidden text-xs font-mono">
             {forecastViewMode === 'comparison' ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={forecastAnalysis.chartData} margin={{ top: 15, right: 15, left: -10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis
@@ -1144,7 +1146,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <AreaChart data={forecastAnalysis.timelineData} margin={{ top: 15, right: 15, left: -10, bottom: 10 }}>
                   <defs>
                     <linearGradient id="forecastStockGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1194,10 +1196,10 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
 
         {/* Actionable Reorder Recommendation Table */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
+        <div className="space-y-2.5 w-full min-w-0 max-w-full overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <h4 className="font-bold text-xs text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Boxes className="w-3.5 h-3.5 text-amber-400" />
+              <Boxes className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>Garment Stock Needs & Replenishment Matrix (Next 30 Days)</span>
             </h4>
             <span className="text-[11px] font-mono text-slate-500">
@@ -1205,8 +1207,8 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
-            <table className="w-full text-left text-xs text-slate-300">
+          <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 scrollbar-thin">
+            <table className="w-full min-w-[660px] text-left text-xs text-slate-300">
               <thead className="bg-slate-900/80 text-slate-400 font-mono uppercase text-[10px] border-b border-slate-800">
                 <tr>
                   <th className="p-3">Garment Style</th>
@@ -1308,13 +1310,13 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 printable-report">
+    <div className="w-full max-w-7xl mx-auto p-3 sm:p-6 space-y-6 printable-report overflow-x-hidden min-w-0">
       
       {/* Top Header & Sub-Tab Navigation */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl no-print">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl no-print w-full min-w-0">
         <div>
           <h2 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-amber-400" />
+            <BarChart3 className="w-6 h-6 text-amber-400 shrink-0" />
             <span>{isEmployee ? 'Daily Sales Register & Reports' : 'Reports, Analytics & AI Intelligence'}</span>
           </h2>
           <p className="text-xs text-slate-400">
@@ -1325,11 +1327,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
 
         {/* Sub Navigation Tabs */}
-        <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+        <div className="w-full lg:w-auto overflow-x-auto scrollbar-none flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 shrink-0">
           {!isEmployee && (
             <button
               onClick={() => setActiveReportTab('overview')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
                 activeReportTab === 'overview'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
@@ -1342,7 +1344,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
           <button
             onClick={() => setActiveReportTab('daily_sales')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
               activeReportTab === 'daily_sales'
                 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
@@ -1355,7 +1357,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
           {!isEmployee && (
             <button
               onClick={() => setActiveReportTab('inventory_report')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
                 activeReportTab === 'inventory_report'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
@@ -1369,7 +1371,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
           {!isEmployee && (
             <button
               onClick={() => setActiveReportTab('expenses')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
                 activeReportTab === 'expenses'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
@@ -1380,30 +1382,56 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </button>
           )}
 
-          {!isEmployee && (
-            <button
-              onClick={() => setActiveReportTab('forecast')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeReportTab === 'forecast'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>30-Day Stock Forecast</span>
-              {forecastAnalysis.totalUnitsNeeded > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none">
-                  {forecastAnalysis.totalUnitsNeeded}
-                </span>
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => setActiveReportTab('forecast')}
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap ${
+              activeReportTab === 'forecast'
+                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">30-Day Potential Stock Needs Forecast</span>
+            <span className="sm:hidden">30-Day Forecast</span>
+            {forecastAnalysis.totalUnitsNeeded > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none ${
+                activeReportTab === 'forecast' ? 'bg-slate-950 text-amber-300' : 'bg-rose-500 text-white'
+              }`}>
+                {forecastAnalysis.totalUnitsNeeded}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
       {/* DAILY SALES REPORT VIEW */}
       {activeReportTab === 'daily_sales' && (
         <div className="space-y-6">
+
+          {/* Quick link banner to 30-Day Forecast */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl shrink-0">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs sm:text-sm text-slate-100">
+                  Looking for Predictive Inventory Demand Projections?
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Forecast 30-day stock replenishment requirements based on sales run-rate velocity.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab('forecast')}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer shadow-md"
+            >
+              <span>Open 30-Day Forecast Chart</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
           
           {/* Controls & Export Header */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg no-print">
@@ -1705,6 +1733,31 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
             </div>
           </div>
 
+          {/* Quick link banner to 30-Day Forecast */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl shrink-0">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs sm:text-sm text-slate-100">
+                  Looking to Forecast 30-Day Stock Replenishment Needs?
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Model inventory stockout risks and projected reorder deficits from sales history.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab('forecast')}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer shadow-md"
+            >
+              <span>View 30-Day Forecast</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Inventory Valuation KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-1 shadow-lg">
@@ -1967,9 +2020,6 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 30-DAY POTENTIAL STOCK NEEDS FORECASTING SECTION */}
-      {renderStockForecastSection(false)}
 
       {/* MOST BOUGHT TO LEAST BOUGHT PRODUCTS RANKING PLATFORM */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">
@@ -2326,6 +2376,10 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
         </div>
 
       </div>
+
+      {/* 30-DAY POTENTIAL STOCK NEEDS FORECASTING SECTION */}
+      {renderStockForecastSection(false)}
+
       </div>
       )}
 
@@ -2629,6 +2683,31 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({
 
             </div>
 
+          </div>
+
+          {/* Quick link banner to 30-Day Potential Stock Needs Forecast right after operational expenses */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl shrink-0">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs sm:text-sm text-slate-100">
+                  Ready to review 30-Day Potential Stock Needs Forecast?
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Evaluate inventory replenishment needs, stockout hazards, and reorder procurement capital.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveReportTab('forecast')}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer shadow-md"
+            >
+              <span>View 30-Day Forecast</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

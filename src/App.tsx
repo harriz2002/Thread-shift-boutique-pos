@@ -1233,7 +1233,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 pb-16 overflow-y-auto">
+        <main className="flex-1 pb-16 overflow-y-auto overflow-x-hidden min-w-0 w-full max-w-full">
         {activeTab === 'pos' && (
           <RegisterPOS
             products={products}
