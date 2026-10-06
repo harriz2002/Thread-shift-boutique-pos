@@ -16,6 +16,7 @@ import {
   X,
   Settings,
   ClipboardList,
+  Pencil,
 } from 'lucide-react';
 import { StoreLocation, UserAccount } from '../types';
 
@@ -172,10 +173,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {onOpenStoreManager && currentUser?.role === 'admin' && (
                 <button
                   onClick={onOpenStoreManager}
-                  className="bg-slate-900 hover:bg-slate-700 text-amber-400 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition-colors"
-                  title="Manage Stores & Inventory Transfer"
+                  className="bg-slate-900 hover:bg-slate-700 text-amber-400 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Edit Store Name & Manage Branches"
                 >
-                  Manage
+                  <Pencil className="w-2.5 h-2.5" />
+                  <span>Edit / Manage</span>
                 </button>
               )}
             </div>

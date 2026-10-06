@@ -29,6 +29,8 @@ import {
   Bell,
   Clock,
   ShieldCheck,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { SystemSettings, StoreLocation, MasterProduct, UserAccount } from '../types';
 
@@ -43,6 +45,7 @@ interface SystemSettingsManagerProps {
   currentUser?: UserAccount | null;
   dbMode?: 'firestore' | 'cloudsql';
   onOpenDatabaseModal?: () => void;
+  onUpdateStores?: (updatedStores: StoreLocation[], updatedProducts: MasterProduct[], newActiveStoreId?: string, deletedStoreId?: string) => void;
 }
 
 export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
@@ -56,6 +59,7 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
   currentUser,
   dbMode = 'firestore',
   onOpenDatabaseModal,
+  onUpdateStores,
 }) => {
   const [formData, setFormData] = useState<SystemSettings>({ ...settings });
   const [activeTab, setActiveTab] = useState<'profile' | 'receipt' | 'inventory' | 'stores' | 'backup'>('profile');
@@ -66,11 +70,82 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
     return localStorage.getItem('ts_last_backup_date');
   });
 
+  // Inline store editing state in Settings
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [editStoreName, setEditStoreName] = useState('');
+  const [editStoreCode, setEditStoreCode] = useState('');
+  const [editStoreAddress, setEditStoreAddress] = useState('');
+  const [editStorePhone, setEditStorePhone] = useState('');
+
+  const handleStartEditStore = (store: StoreLocation) => {
+    setEditingStoreId(store.id);
+    setEditStoreName(store.name);
+    setEditStoreCode(store.code);
+    setEditStoreAddress(store.address || '');
+    setEditStorePhone(store.phone || '');
+  };
+
+  const handleCancelEditStore = () => {
+    setEditingStoreId(null);
+  };
+
+  const handleSaveStore = (e: React.FormEvent, storeId: string) => {
+    e.preventDefault();
+    if (!editStoreName.trim()) {
+      alert('Store name cannot be empty.');
+      return;
+    }
+    const updated = stores.map((s) =>
+      s.id === storeId
+        ? {
+            ...s,
+            name: editStoreName.trim(),
+            code: (editStoreCode || s.code).trim().toUpperCase(),
+            address: editStoreAddress.trim() || s.address,
+            phone: editStorePhone.trim() || s.phone,
+          }
+        : s
+    );
+    if (onUpdateStores) {
+      onUpdateStores(updated, products);
+    }
+    setSaveSuccessMessage(`Store name updated to "${editStoreName.trim()}" successfully!`);
+    setEditingStoreId(null);
+    setTimeout(() => {
+      setSaveSuccessMessage(null);
+    }, 3000);
+  };
+
   React.useEffect(() => {
     setFormData({ ...settings });
   }, [settings]);
 
   const activeStore = stores.find((s) => s.id === activeStoreId) || stores[0];
+  const mainStore = stores.find((s) => s.isCentral || s.id === 'store-3') || stores[0];
+  const [mainStoreNameInput, setMainStoreNameInput] = useState(mainStore?.name || '');
+
+  React.useEffect(() => {
+    if (mainStore?.name) {
+      setMainStoreNameInput(mainStore.name);
+    }
+  }, [mainStore?.name]);
+
+  const handleSaveMainStoreName = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!mainStoreNameInput.trim()) {
+      alert('Store name cannot be empty.');
+      return;
+    }
+    const trimmed = mainStoreNameInput.trim();
+    const updated = stores.map((s) => (s.id === mainStore.id ? { ...s, name: trimmed } : s));
+    if (onUpdateStores) {
+      onUpdateStores(updated, products);
+    }
+    setSaveSuccessMessage(`Main store name updated to "${trimmed}" successfully!`);
+    setTimeout(() => {
+      setSaveSuccessMessage(null);
+    }, 3500);
+  };
 
   const handleChange = (field: keyof SystemSettings, value: any) => {
     setFormData((prev) => ({
@@ -138,6 +213,11 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
     if (e) e.preventDefault();
     try {
       onUpdateSettings(formData);
+      if (mainStoreNameInput.trim() && mainStoreNameInput.trim() !== mainStore?.name && onUpdateStores) {
+        const trimmed = mainStoreNameInput.trim();
+        const updated = stores.map((s) => (s.id === mainStore.id ? { ...s, name: trimmed } : s));
+        onUpdateStores(updated, products);
+      }
       setSaveSuccessMessage('Business profile and system settings saved successfully!');
       setIsSaved(true);
       setTimeout(() => {
@@ -429,6 +509,53 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
                   placeholder="e.g. Kenyan Apparel POS"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
                 />
+              </div>
+
+              {/* Main Store Location Quick Edit Card */}
+              <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-amber-400" />
+                    <span>Main Retail Store Name:</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-500/30">
+                      Code: {mainStore?.code}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onOpenStoreManager}
+                      className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 rounded-lg border border-amber-500/30 transition-all cursor-pointer"
+                      title="Manage All Store Locations"
+                    >
+                      <Building2 className="w-3 h-3" />
+                      <span>All Branches</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={mainStoreNameInput}
+                      onChange={(e) => setMainStoreNameInput(e.target.value)}
+                      placeholder="e.g. Threads & Style Flagship Boutique"
+                      className="flex-1 bg-slate-900 border border-amber-500/40 focus:border-amber-400 rounded-xl px-3.5 py-2 text-xs text-white font-bold outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveMainStoreName}
+                      className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shrink-0"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Update Store Name</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Physical branch location name printed on customer receipts and sales reports.
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -845,33 +972,162 @@ export const SystemSettingsManager: React.FC<SystemSettingsManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {stores.map((s) => (
-              <div
-                key={s.id}
-                className={`p-4 rounded-xl border transition-all ${
-                  s.id === activeStoreId
-                    ? 'bg-amber-500/10 border-amber-500/50 shadow-md shadow-amber-500/10'
-                    : 'bg-slate-950 border-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-sm text-slate-100">{s.name}</span>
-                  {s.id === activeStoreId && (
-                    <span className="text-[10px] bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full font-bold">
-                      Active
-                    </span>
-                  )}
+            {stores.map((s) => {
+              const isEditingThis = editingStoreId === s.id;
+              const isActive = s.id === activeStoreId;
+
+              if (isEditingThis) {
+                return (
+                  <form
+                    key={s.id}
+                    onSubmit={(e) => handleSaveStore(e, s.id)}
+                    className="p-4 rounded-xl border-2 border-amber-500 bg-slate-950 shadow-xl space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit Store Details</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCancelEditStore}
+                        className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-300 mb-1">
+                        Store Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={editStoreName}
+                        onChange={(e) => setEditStoreName(e.target.value)}
+                        placeholder="e.g. Flagship Boutique (Downtown)"
+                        className="w-full bg-slate-900 border border-amber-500/50 focus:border-amber-400 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none font-bold shadow-inner"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-300 mb-1">
+                        Store Code *
+                      </label>
+                      <input
+                        type="text"
+                        value={editStoreCode}
+                        onChange={(e) => setEditStoreCode(e.target.value)}
+                        placeholder="e.g. FLAG-DT"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-xs text-white uppercase outline-none font-mono"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-300 mb-1">
+                        Physical Address
+                      </label>
+                      <input
+                        type="text"
+                        value={editStoreAddress}
+                        onChange={(e) => setEditStoreAddress(e.target.value)}
+                        placeholder="e.g. 450 Fashion Avenue, Nairobi"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-300 mb-1">
+                        Phone Number
+                      </label>
+                      <input
+                        type="text"
+                        value={editStorePhone}
+                        onChange={(e) => setEditStorePhone(e.target.value)}
+                        placeholder="e.g. +254 700 123 456"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={handleCancelEditStore}
+                        className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Save Name</span>
+                      </button>
+                    </div>
+                  </form>
+                );
+              }
+
+              return (
+                <div
+                  key={s.id}
+                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+                    isActive
+                      ? 'bg-amber-500/10 border-amber-500/50 shadow-md shadow-amber-500/10'
+                      : 'bg-slate-950 border-slate-800'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-bold text-sm text-slate-100 truncate">{s.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditStore(s)}
+                          className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                          title={`Edit store name for ${s.name}`}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-300">
+                          {s.code}
+                        </span>
+                        {isActive && (
+                          <span className="text-[10px] bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full font-bold">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 flex items-center gap-1 mb-1">
+                      <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="truncate">{s.address || 'N/A'}</span>
+                    </p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="truncate">TEL: {s.phone || 'N/A'}</span>
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-800/80 mt-3 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditStore(s)}
+                      className="w-full py-1.5 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>Edit Store Name & Details</span>
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 flex items-center gap-1 mb-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{s.address}</span>
-                </p>
-                <p className="text-xs text-slate-400 flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-slate-500" />
-                  <span>TEL: {s.phone}</span>
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

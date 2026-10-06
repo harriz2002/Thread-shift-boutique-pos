@@ -474,106 +474,52 @@ export default function App() {
     };
   }, [isFirebaseLoaded]);
 
-  // Sync state to localStorage, Supabase, & Firebase Firestore
+  // Sync state to localStorage smoothly without burning Firestore write quota in loops
   useEffect(() => {
     localStorage.setItem('ts_stores', JSON.stringify(stores));
-    if (isSupabaseLoaded) {
-      stores.forEach((s) => saveSupabaseDocument(SUPABASE_TABLES.STORES, s).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      stores.forEach((s) => saveDocument('stores', s).catch(() => {}));
-    }
-  }, [stores, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [stores]);
 
   useEffect(() => {
     localStorage.setItem('ts_products', JSON.stringify(products));
-    if (isSupabaseLoaded) {
-      products.forEach((p) => saveSupabaseDocument(SUPABASE_TABLES.PRODUCTS, p).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      products.forEach((p) => saveDocument('products', p).catch(() => {}));
-    }
-  }, [products, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [products]);
 
   useEffect(() => {
     localStorage.setItem('ts_customers', JSON.stringify(customers));
-    if (isSupabaseLoaded) {
-      customers.forEach((c) => saveSupabaseDocument(SUPABASE_TABLES.CUSTOMERS, c).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      customers.forEach((c) => saveDocument('customers', c).catch(() => {}));
-    }
-  }, [customers, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [customers]);
 
   useEffect(() => {
     localStorage.setItem('ts_transactions', JSON.stringify(transactions));
-    if (isSupabaseLoaded) {
-      transactions.forEach((t) => saveSupabaseDocument(SUPABASE_TABLES.TRANSACTIONS, t).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      transactions.forEach((t) => saveDocument('transactions', t).catch(() => {}));
-    }
-  }, [transactions, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [transactions]);
 
   useEffect(() => {
     localStorage.setItem('ts_holds', JSON.stringify(holds));
-    if (isSupabaseLoaded) {
-      holds.forEach((h) => saveSupabaseDocument(SUPABASE_TABLES.HOLDS, h).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      holds.forEach((h) => saveDocument('holds', h).catch(() => {}));
-    }
-  }, [holds, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [holds]);
 
   useEffect(() => {
     localStorage.setItem('ts_layaways', JSON.stringify(layaways));
-    if (isSupabaseLoaded) {
-      layaways.forEach((l) => saveSupabaseDocument(SUPABASE_TABLES.LAYAWAYS, l).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      layaways.forEach((l) => saveDocument('layaways', l).catch(() => {}));
-    }
-  }, [layaways, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [layaways]);
 
   useEffect(() => {
     localStorage.setItem('ts_transfers', JSON.stringify(transfers));
-    if (isSupabaseLoaded) {
-      transfers.forEach((tr) => saveSupabaseDocument(SUPABASE_TABLES.TRANSFERS, tr).catch(() => {}));
-    }
-    if (isFirebaseLoaded) {
-      transfers.forEach((tr) => saveDocument('transfers', tr).catch(() => {}));
-    }
-  }, [transfers, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [transfers]);
 
   useEffect(() => {
-    if (isSupabaseLoaded && purchaseOrders.length > 0) {
-      purchaseOrders.forEach((po) => saveSupabaseDocument(SUPABASE_TABLES.PURCHASE_ORDERS, po).catch(() => {}));
+    if (purchaseOrders.length > 0) {
+      localStorage.setItem('ts_purchase_orders', JSON.stringify(purchaseOrders));
     }
-    if (isFirebaseLoaded && purchaseOrders.length > 0) {
-      purchaseOrders.forEach((po) => saveDocument('purchase_orders', po).catch(() => {}));
-    }
-  }, [purchaseOrders, isSupabaseLoaded, isFirebaseLoaded]);
+  }, [purchaseOrders]);
 
   useEffect(() => {
     localStorage.setItem('ts_users', JSON.stringify(users));
-    if (isSupabaseLoaded) {
-      users.forEach((u) => saveSupabaseDocument(SUPABASE_TABLES.USERS, u).catch(() => {}));
-    }
-  }, [users, isSupabaseLoaded]);
+  }, [users]);
 
   useEffect(() => {
     localStorage.setItem('ts_expenses', JSON.stringify(expenses));
-    if (isFirebaseLoaded) {
-      expenses.forEach((e) => saveDocument('expenses', e));
-    }
-  }, [expenses, isFirebaseLoaded]);
+  }, [expenses]);
 
   useEffect(() => {
     localStorage.setItem('ts_special_orders', JSON.stringify(specialOrders));
-    if (isFirebaseLoaded && specialOrders.length > 0) {
-      specialOrders.forEach((o) => saveDocument('special_orders', o));
-    }
-  }, [specialOrders, isFirebaseLoaded]);
+  }, [specialOrders]);
 
   useEffect(() => {
     localStorage.setItem('ts_theme', isDarkMode ? 'dark' : 'light');
@@ -738,6 +684,7 @@ export default function App() {
     };
 
     setHolds((prev) => [newHold, ...prev]);
+    saveDocument('holds', newHold).catch(() => {});
     setCart([]);
     alert(`Cart saved on hold! Hold Code: ${newHold.holdCode}`);
   };
@@ -746,11 +693,13 @@ export default function App() {
   const handleRestoreHoldCart = (hold: HoldCart) => {
     setCart(hold.cartItems);
     setHolds((prev) => prev.filter((h) => h.id !== hold.id));
+    deleteDocument('holds', hold.id).catch(() => {});
     setActiveTab('pos');
   };
 
   const handleDeleteHoldCart = (holdId: string) => {
     setHolds((prev) => prev.filter((h) => h.id !== holdId));
+    deleteDocument('holds', holdId).catch(() => {});
   };
 
   // Create Layaway Plan with Client Details Prompt Modal
@@ -801,6 +750,7 @@ export default function App() {
     };
 
     setLayaways((prev) => [newLayaway, ...prev]);
+    saveDocument('layaways', newLayaway).catch(() => {});
     setCart([]);
     setIsNewLayawayModalOpen(false);
     setActiveTab('layaway');
@@ -820,7 +770,7 @@ export default function App() {
         const newPaid = plan.depositPaid + amount;
         const newBal = Math.max(0, plan.totalAmount - newPaid);
 
-        return {
+        const updatedPlan: LayawayPlan = {
           ...plan,
           depositPaid: newPaid,
           balanceDue: newBal,
@@ -837,13 +787,22 @@ export default function App() {
             },
           ],
         };
+        saveDocument('layaways', updatedPlan).catch(() => {});
+        return updatedPlan;
       })
     );
   };
 
   const handleCompleteLayaway = (layawayId: string) => {
     setLayaways((prev) =>
-      prev.map((p) => (p.id === layawayId ? { ...p, status: 'completed' } : p))
+      prev.map((p) => {
+        if (p.id === layawayId) {
+          const completed = { ...p, status: 'completed' as const };
+          saveDocument('layaways', completed).catch(() => {});
+          return completed;
+        }
+        return p;
+      })
     );
     alert('Layaway plan completed! Goods released to customer.');
   };
@@ -852,6 +811,7 @@ export default function App() {
   const handleCompleteSale = (transaction: SaleTransaction) => {
     // 1. Add to sales history
     setTransactions((prev) => [transaction, ...prev]);
+    saveDocument('transactions', transaction).catch(() => {});
 
     // 2. Deduct quantities from products stock for active store
     setProducts((prevProducts) => {
@@ -1060,11 +1020,19 @@ export default function App() {
   // Add Customer
   const handleAddCustomer = (newCustomer: Customer) => {
     setCustomers((prev) => [newCustomer, ...prev]);
+    saveDocument('customers', newCustomer).catch(() => {});
   };
 
   const handleUpdateStoreCredit = (customerId: string, newCredit: number) => {
     setCustomers((prev) =>
-      prev.map((c) => (c.id === customerId ? { ...c, storeCredit: newCredit } : c))
+      prev.map((c) => {
+        if (c.id === customerId) {
+          const updated = { ...c, storeCredit: newCredit };
+          saveDocument('customers', updated).catch(() => {});
+          return updated;
+        }
+        return c;
+      })
     );
   };
 
@@ -1076,11 +1044,10 @@ export default function App() {
     }
     localStorage.setItem('ts_stores', JSON.stringify(updatedStores));
     localStorage.setItem('ts_products', JSON.stringify(updatedProducts));
-    updatedStores.forEach((s) => saveDocument('stores', s));
-    updatedProducts.forEach((p) => saveDocument('products', p));
+    updatedStores.forEach((s) => saveDocument('stores', s).catch(() => {}));
     if (deletedStoreId) {
-      deleteDocument('stores', deletedStoreId);
-      deleteSupabaseDocument(SUPABASE_TABLES.STORES, deletedStoreId);
+      deleteDocument('stores', deletedStoreId).catch(() => {});
+      deleteSupabaseDocument(SUPABASE_TABLES.STORES, deletedStoreId).catch(() => {});
     }
   };
 
@@ -1343,6 +1310,7 @@ export default function App() {
             currentUser={currentUser}
             dbMode={dbMode}
             onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
+            onUpdateStores={handleUpdateStores}
           />
         )}
       </main>

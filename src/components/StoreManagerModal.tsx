@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StoreLocation, MasterProduct } from '../types';
-import { Store, Plus, Trash2, Shield, MapPin, Phone, Building2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Store, Plus, Trash2, Shield, MapPin, Phone, Building2, AlertTriangle, CheckCircle2, Pencil, Check, X, Edit3 } from 'lucide-react';
 
 interface StoreManagerModalProps {
   isOpen: boolean;
@@ -29,10 +29,77 @@ export const StoreManagerModal: React.FC<StoreManagerModalProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [confirmStoreToDelete, setConfirmStoreToDelete] = useState<StoreLocation | null>(null);
 
+  // Edit store state
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editIsWarehouse, setEditIsWarehouse] = useState(false);
+  const [editIsCentral, setEditIsCentral] = useState(false);
+
   if (!isOpen) return null;
 
   // Central store is store-3, marked isCentral, or fallback to the first store in the list
   const centralStore = stores.find((s) => s.id === 'store-3' || s.isCentral) || stores[0];
+
+  const startEditStore = (store: StoreLocation) => {
+    setEditingStoreId(store.id);
+    setEditName(store.name);
+    setEditCode(store.code);
+    setEditAddress(store.address || '');
+    setEditPhone(store.phone || '');
+    setEditIsWarehouse(Boolean(store.isWarehouse));
+    setEditIsCentral(Boolean(store.isCentral || store.id === 'store-3' || store.id === centralStore?.id));
+    setShowAddForm(false);
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
+
+  const cancelEditStore = () => {
+    setEditingStoreId(null);
+  };
+
+  const handleSaveEditStore = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!editName.trim()) {
+      setErrorMsg('Store name cannot be empty.');
+      return;
+    }
+    if (!editCode.trim()) {
+      setErrorMsg('Store code cannot be empty.');
+      return;
+    }
+
+    const trimmedName = editName.trim();
+    const updatedStores = stores.map((s) => {
+      if (s.id === editingStoreId) {
+        return {
+          ...s,
+          name: trimmedName,
+          code: editCode.trim().toUpperCase(),
+          address: editAddress.trim() || 'Nairobi, Kenya',
+          phone: editPhone.trim() || '+254 700 000 000',
+          isWarehouse: editIsWarehouse,
+          isCentral: editIsCentral,
+        };
+      }
+      if (editIsCentral && s.id !== editingStoreId) {
+        return {
+          ...s,
+          isCentral: false,
+        };
+      }
+      return s;
+    });
+
+    onUpdateStores(updatedStores, products);
+    setSuccessMsg(`Store "${trimmedName}" updated successfully!`);
+    setEditingStoreId(null);
+  };
 
   const handleAddStore = (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,6 +353,127 @@ export const StoreManagerModal: React.FC<StoreManagerModalProps> = ({
             {stores.map((store) => {
               const isCentral = store.id === centralStore?.id || store.id === 'store-3' || store.isCentral;
               const isCurrent = store.id === activeStoreId;
+              const isEditingThis = editingStoreId === store.id;
+
+              if (isEditingThis) {
+                return (
+                  <form
+                    key={store.id}
+                    onSubmit={handleSaveEditStore}
+                    className="p-5 rounded-2xl border-2 border-amber-500 bg-slate-950 shadow-xl space-y-4"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Pencil className="w-4 h-4 text-amber-400" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                          Edit Store Name & Details {isCentral ? '(Main / Central Store)' : ''}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={cancelEditStore}
+                        className="text-slate-400 hover:text-white text-xs flex items-center gap-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Store Name * {isCentral && <span className="text-amber-400">(Main Store)</span>}
+                        </label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="e.g. Flagship Boutique (Downtown)"
+                          className="w-full bg-slate-900 border border-amber-500/50 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white outline-none font-bold shadow-inner"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Store Code *
+                        </label>
+                        <input
+                          type="text"
+                          value={editCode}
+                          onChange={(e) => setEditCode(e.target.value)}
+                          placeholder="e.g. FLAG-DT"
+                          className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white uppercase outline-none font-mono"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Physical Address
+                        </label>
+                        <input
+                          type="text"
+                          value={editAddress}
+                          onChange={(e) => setEditAddress(e.target.value)}
+                          placeholder="e.g. 450 Fashion Avenue, Suite 101, City Center"
+                          className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Contact Phone Number
+                        </label>
+                        <input
+                          type="text"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          placeholder="e.g. +254 700 123 456"
+                          className="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 pt-1">
+                      <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editIsWarehouse}
+                          onChange={(e) => setEditIsWarehouse(e.target.checked)}
+                          className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span>Designate as Logistics Warehouse</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editIsCentral}
+                          onChange={(e) => setEditIsCentral(e.target.checked)}
+                          className="rounded bg-slate-900 border-slate-700 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span className="text-amber-300 font-semibold">Designate as Main / Central Store</span>
+                      </label>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={cancelEditStore}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Save Store Changes</span>
+                      </button>
+                    </div>
+                  </form>
+                );
+              }
 
               return (
                 <div
@@ -309,6 +497,14 @@ export const StoreManagerModal: React.FC<StoreManagerModalProps> = ({
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-white text-sm">{store.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => startEditStore(store)}
+                          className="p-1 rounded-md text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                          title={`Edit store name for ${store.name}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
                         <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300">
                           {store.code}
                         </span>
@@ -342,6 +538,16 @@ export const StoreManagerModal: React.FC<StoreManagerModalProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => startEditStore(store)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title={`Edit name, code and details for ${store.name}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit Store Name</span>
+                    </button>
+
                     {isCentral ? (
                       <span className="text-[11px] text-slate-500 italic bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
                         Undeletable Central Store
@@ -349,7 +555,7 @@ export const StoreManagerModal: React.FC<StoreManagerModalProps> = ({
                     ) : (
                       <button
                         onClick={() => handleDeleteStoreRequest(store)}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                         title="Delete store and transfer all inventory stock to Central Store"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

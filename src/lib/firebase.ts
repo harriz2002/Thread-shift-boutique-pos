@@ -37,12 +37,63 @@ import {
   INITIAL_USERS
 } from '../data/mockData';
 
-// Configure log level to silence transient connection warnings during offline fallback
-setLogLevel('error');
+// Configure log level to silence internal retry and backoff logs during quota exhaustion
+setLogLevel('silent');
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth(app);
+
+// Circuit breaker for Firestore free tier write quota limits (cached for current day)
+const QUOTA_STORAGE_KEY = 'ts_firestore_quota_exhausted_date';
+
+function checkInitialQuotaExhaustion(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const storedDate = localStorage.getItem(QUOTA_STORAGE_KEY);
+    return storedDate === todayStr;
+  } catch {
+    return false;
+  }
+}
+
+let isQuotaExhausted = checkInitialQuotaExhaustion();
+
+export function getFirestoreQuotaExhausted(): boolean {
+  return isQuotaExhausted;
+}
+
+export function setFirestoreQuotaExhausted(val: boolean): void {
+  isQuotaExhausted = val;
+  if (typeof window !== 'undefined') {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (val) {
+        localStorage.setItem(QUOTA_STORAGE_KEY, todayStr);
+      } else {
+        localStorage.removeItem(QUOTA_STORAGE_KEY);
+      }
+    } catch {}
+  }
+}
+
+// Global safeguard against unhandled Firestore quota errors
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const msg = reason?.message || String(reason || '');
+    if (
+      reason?.code === 'resource-exhausted' ||
+      msg.includes('Quota limit exceeded') ||
+      msg.includes('resource-exhausted') ||
+      msg.includes('Free daily write units per project')
+    ) {
+      setFirestoreQuotaExhausted(true);
+      event.preventDefault(); // Suppress browser unhandled error
+    }
+  });
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -71,8 +122,19 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMessage = error instanceof Error ? error.message : String(error);
+  if (
+    (error as any)?.code === 'resource-exhausted' ||
+    errMessage.includes('Quota limit exceeded') ||
+    errMessage.includes('resource-exhausted')
+  ) {
+    setFirestoreQuotaExhausted(true);
+    console.warn('Firestore write quota limit active. Continuing smoothly with offline & local storage cache.');
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -87,8 +149,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Operation Notice: ', JSON.stringify(errInfo));
 }
 
 // Test connection to server on boot (non-blocking)
@@ -111,20 +172,42 @@ const COL_SPECIAL_ORDERS = 'special_orders';
 
 // Generic sync helper
 export async function saveDocument<T extends { id: string }>(colName: string, item: T): Promise<void> {
+  if (isQuotaExhausted) {
+    return;
+  }
   try {
     const docRef = doc(db, colName, item.id);
     await setDoc(docRef, item);
-  } catch (error) {
-    // Silent local fallback if offline
+  } catch (error: any) {
+    if (
+      error?.code === 'resource-exhausted' ||
+      error?.message?.includes('Quota limit exceeded') ||
+      error?.message?.includes('resource-exhausted') ||
+      error?.message?.includes('Free daily write units')
+    ) {
+      setFirestoreQuotaExhausted(true);
+      console.warn('Firestore daily write quota reached (free-tier limit). App is continuing smoothly using local storage persistence.');
+    }
   }
 }
 
 export async function deleteDocument(colName: string, id: string): Promise<void> {
+  if (isQuotaExhausted) {
+    return;
+  }
   try {
     const docRef = doc(db, colName, id);
     await deleteDoc(docRef);
-  } catch (error) {
-    // Silent local fallback if offline
+  } catch (error: any) {
+    if (
+      error?.code === 'resource-exhausted' ||
+      error?.message?.includes('Quota limit exceeded') ||
+      error?.message?.includes('resource-exhausted') ||
+      error?.message?.includes('Free daily write units')
+    ) {
+      setFirestoreQuotaExhausted(true);
+      console.warn('Firestore daily write quota reached (free-tier limit). App is continuing smoothly using local storage persistence.');
+    }
   }
 }
 
@@ -142,6 +225,34 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
   settings?: SystemSettings;
   specialOrders: CustomerSpecialOrder[];
 }> {
+  // Helper to read localStorage cleanly
+  const parseLocal = <T>(key: string, fallback: T): T => {
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  // If already flagged for quota exhaustion, load cleanly from local cache without triggering Firestore calls
+  if (isQuotaExhausted) {
+    return {
+      stores: parseLocal('ts_stores', INITIAL_STORES),
+      products: parseLocal('ts_products', INITIAL_PRODUCTS),
+      customers: parseLocal('ts_customers', INITIAL_CUSTOMERS),
+      transactions: parseLocal('ts_transactions', INITIAL_TRANSACTIONS),
+      layaways: parseLocal('ts_layaways', INITIAL_LAYAWAYS),
+      holds: parseLocal('ts_holds', INITIAL_HOLDS),
+      transfers: parseLocal('ts_transfers', INITIAL_TRANSFERS),
+      purchaseOrders: parseLocal('ts_purchase_orders', []),
+      users: parseLocal('ts_users', INITIAL_USERS),
+      settings: parseLocal('ts_system_settings', undefined),
+      specialOrders: parseLocal('ts_special_orders', [])
+    };
+  }
+
   try {
     const storesSnap = await getDocs(collection(db, COL_STORES));
     const productsSnap = await getDocs(collection(db, COL_PRODUCTS));
@@ -185,30 +296,12 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
     let poList: ReorderPO[] = poSnap.docs.map(d => d.data() as ReorderPO);
     let usersList: UserAccount[] = usersSnap.docs.map(d => d.data() as UserAccount);
 
-    // If Firestore has no stores yet, seed with INITIAL_STORES and INITIAL_PRODUCTS, etc.
+    // Fallback to local data if collection is empty, without burning writes on read
     if (storesList.length === 0) {
-      storesList = INITIAL_STORES;
-      for (const s of INITIAL_STORES) {
-        await saveDocument(COL_STORES, s);
-      }
+      storesList = parseLocal('ts_stores', INITIAL_STORES);
     }
     if (productsList.length === 0) {
-      let initialToSeed = INITIAL_PRODUCTS;
-      if (typeof window !== 'undefined') {
-        const local = localStorage.getItem('ts_products');
-        if (local) {
-          try {
-            const parsed = JSON.parse(local);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              initialToSeed = parsed;
-            }
-          } catch {}
-        }
-      }
-      productsList = initialToSeed;
-      for (const p of initialToSeed) {
-        await saveDocument(COL_PRODUCTS, p);
-      }
+      productsList = parseLocal('ts_products', INITIAL_PRODUCTS);
     } else if (typeof window !== 'undefined') {
       // If Firestore already has products, also preserve any extra products from localStorage
       const local = localStorage.getItem('ts_products');
@@ -220,7 +313,6 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
             for (const p of parsed) {
               if (!existingIds.has(p.id)) {
                 productsList.unshift(p);
-                saveDocument(COL_PRODUCTS, p).catch(() => {});
               }
             }
           }
@@ -228,40 +320,22 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       }
     }
     if (customersList.length === 0) {
-      customersList = INITIAL_CUSTOMERS;
-      for (const c of INITIAL_CUSTOMERS) {
-        await saveDocument(COL_CUSTOMERS, c);
-      }
+      customersList = parseLocal('ts_customers', INITIAL_CUSTOMERS);
     }
     if (transactionsList.length === 0) {
-      transactionsList = INITIAL_TRANSACTIONS;
-      for (const t of INITIAL_TRANSACTIONS) {
-        await saveDocument(COL_TRANSACTIONS, t);
-      }
+      transactionsList = parseLocal('ts_transactions', INITIAL_TRANSACTIONS);
     }
     if (layawaysList.length === 0) {
-      layawaysList = INITIAL_LAYAWAYS;
-      for (const l of INITIAL_LAYAWAYS) {
-        await saveDocument(COL_LAYAWAYS, l);
-      }
+      layawaysList = parseLocal('ts_layaways', INITIAL_LAYAWAYS);
     }
     if (holdsList.length === 0) {
-      holdsList = INITIAL_HOLDS;
-      for (const h of INITIAL_HOLDS) {
-        await saveDocument(COL_HOLDS, h);
-      }
+      holdsList = parseLocal('ts_holds', INITIAL_HOLDS);
     }
     if (transfersList.length === 0) {
-      transfersList = INITIAL_TRANSFERS;
-      for (const tr of INITIAL_TRANSFERS) {
-        await saveDocument(COL_TRANSFERS, tr);
-      }
+      transfersList = parseLocal('ts_transfers', INITIAL_TRANSFERS);
     }
     if (usersList.length === 0) {
-      usersList = INITIAL_USERS;
-      for (const u of INITIAL_USERS) {
-        await saveDocument(COL_USERS, u);
-      }
+      usersList = parseLocal('ts_users', INITIAL_USERS);
     }
 
     return {
@@ -274,22 +348,31 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
       transfers: transfersList,
       purchaseOrders: poList,
       users: usersList,
-      settings: settingsData,
-      specialOrders: specialOrdersList
+      settings: settingsData || parseLocal('ts_system_settings', undefined),
+      specialOrders: specialOrdersList.length > 0 ? specialOrdersList : parseLocal('ts_special_orders', [])
     };
-  } catch (error) {
-    // Fallback to initial mock data if offline or network unavailable
+  } catch (error: any) {
+    if (
+      error?.code === 'resource-exhausted' ||
+      error?.message?.includes('Quota limit exceeded') ||
+      error?.message?.includes('resource-exhausted')
+    ) {
+      isQuotaExhausted = true;
+      console.warn('Firestore daily write quota reached (free-tier limit). App is continuing smoothly using local storage persistence.');
+    }
+    // Fallback cleanly to local storage or initial mock data
     return {
-      stores: INITIAL_STORES,
-      products: INITIAL_PRODUCTS,
-      customers: INITIAL_CUSTOMERS,
-      transactions: INITIAL_TRANSACTIONS,
-      layaways: INITIAL_LAYAWAYS,
-      holds: INITIAL_HOLDS,
-      transfers: INITIAL_TRANSFERS,
-      purchaseOrders: [],
-      users: INITIAL_USERS,
-      specialOrders: []
+      stores: parseLocal('ts_stores', INITIAL_STORES),
+      products: parseLocal('ts_products', INITIAL_PRODUCTS),
+      customers: parseLocal('ts_customers', INITIAL_CUSTOMERS),
+      transactions: parseLocal('ts_transactions', INITIAL_TRANSACTIONS),
+      layaways: parseLocal('ts_layaways', INITIAL_LAYAWAYS),
+      holds: parseLocal('ts_holds', INITIAL_HOLDS),
+      transfers: parseLocal('ts_transfers', INITIAL_TRANSFERS),
+      purchaseOrders: parseLocal('ts_purchase_orders', []),
+      users: parseLocal('ts_users', INITIAL_USERS),
+      settings: parseLocal('ts_system_settings', undefined),
+      specialOrders: parseLocal('ts_special_orders', [])
     };
   }
 }
@@ -298,12 +381,25 @@ export async function bootstrapFirestoreIfEmpty(): Promise<{
  * Real-time listener for global system settings (including logo) from Firestore.
  */
 export function subscribeToSettings(onUpdate: (settings: SystemSettings) => void): () => void {
-  const docRef = doc(db, 'settings', 'global');
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      onUpdate(docSnap.data() as SystemSettings);
-    }
-  }, (error) => {
-    console.warn("Firestore settings subscription error:", error);
-  });
+  if (isQuotaExhausted) {
+    return () => {};
+  }
+  try {
+    const docRef = doc(db, 'settings', 'global');
+    return onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        onUpdate(docSnap.data() as SystemSettings);
+      }
+    }, (error: any) => {
+      if (
+        error?.code === 'resource-exhausted' ||
+        error?.message?.includes('Quota limit exceeded') ||
+        error?.message?.includes('resource-exhausted')
+      ) {
+        isQuotaExhausted = true;
+      }
+    });
+  } catch (e) {
+    return () => {};
+  }
 }
